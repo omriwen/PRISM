@@ -74,4 +74,3 @@ jobs:
             -m "not slow and not gpu" \
             --no-cov \
             -q --tb=short -x
-# CI skip test
