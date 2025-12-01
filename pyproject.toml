@@ -1,0 +1,197 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prism"
+version = "0.3.0"
+description = "Progressive Reconstruction from Imaging with Sparse Measurements"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Omri"}
+]
+keywords = ["astronomy", "imaging", "deep-learning", "pytorch", "phase-retrieval", "interferometry"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "dash>=3.3.0",
+    "dash-bootstrap-components>=2.0.4",
+    "hypothesis>=6.148.2",
+    "jinja2>=3.1.6",
+    "loguru>=0.7.3",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.2",
+    "opencv-python-headless>=4.11.0.86",
+    "pillow>=11.3.0",
+    "plotly>=6.3.1",
+    "pyyaml>=6.0.2",
+    "questionary>=2.1.1",
+    "rich>=14.2.0",
+    "scikit-image>=0.25.2",
+    "scipy>=1.16.1",
+    "tensorboard>=2.20.0",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
+]
+
+[project.scripts]
+prism-animate = "prism.cli.animate:main"
+prism-compare = "prism.cli.compare:main"
+prism-inspect = "prism.cli.inspect:main"
+prism-patterns = "prism.cli.patterns:main"
+prism-report = "prism.cli.report:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["prism*"]
+exclude = ["tests*", "docs*", "scripts*", "benchmarks*", "experiments*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]  # I = isort (ruff handles import sorting)
+ignore = ["N801", "N802", "N812", "E402", "E501"]  # Scientific naming, imports after plt.ion(), docstring lines
+
+[tool.ruff.lint.isort]
+force-single-line = false
+lines-after-imports = 2
+known-first-party = ["prism"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+check_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+pretty = true
+
+# Strict type checking for all prism modules
+disallow_untyped_defs = true
+disallow_any_generics = false
+
+# Ignore missing imports for third-party libraries without stubs
+ignore_missing_imports = true
+
+# Exclude example files from type checking - they demonstrate aspirational API usage
+exclude = [
+    "docs/examples/",
+]
+
+# Dash callback modules - Dash's decorator API makes strict typing impractical
+# These modules use dynamic decorators that can't be properly typed
+[[tool.mypy.overrides]]
+module = [
+    "prism.web.callbacks.*",
+    "prism.web.dashboard",
+    "prism.web.launcher",
+]
+disallow_untyped_defs = false
+
+# Exclude examples directory - these are pedagogical examples
+# that demonstrate aspirational API usage
+[[tool.mypy.overrides]]
+module = [
+    "examples.*",
+    "docs.examples.*",
+]
+ignore_errors = true
+
+# Test files - tests intentionally pass invalid arguments to test validation
+# and use simplified types (list[int] vs list[float]) for clarity
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+# Note: isort section removed - ruff handles import sorting via [tool.ruff.lint.isort]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=prism",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests that require GPU/CUDA (deselect with '-m \"not gpu\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "regression: marks tests as regression tests that compare against golden outputs",
+]
+
+[tool.coverage.run]
+source = ["prism"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "prism/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+precision = 2
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "hypothesis>=6.148.2",
+    "ipykernel>=6.30.1",
+    "isort>=6.0.1",
+    "jupyter>=1.1.1",
+    "jupyterlab>=4.4.7",
+    "line-profiler>=5.0.0",
+    "memory-profiler>=0.61.0",
+    "mypy>=1.18.2",
+    "notebook>=7.4.5",
+    "pre-commit>=4.3.0",
+    "pydoc-markdown>=4.8.2",
+    "pylint>=4.0.2",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "radon>=6.0.1",
+    "ruff>=0.13.2",
+    "sphinx>=8.2.3",
+    "sphinx-autodoc-typehints>=3.5.2",
+    "sphinx-rtd-theme>=3.0.2",
+    "types-pyyaml>=6.0.12.20250915",
+    "vulture>=2.14",
+]

@@ -1,0 +1,17 @@
+# Quick Test Preset
+# Fast iteration preset for debugging and rapid development
+# Usage: python main.py --config configs/presets/quick_test.yaml --obj europa --name test
+
+comment: "Quick test preset for fast iteration and debugging"
+save_data: false
+
+telescope:
+  n_samples: 64
+  sample_length: 64
+  samples_per_line_meas: 9
+  fermat_sample: true
+
+training:
+  max_epochs: 1
+  n_epochs: 1000
+  loss_threshold: 0.001

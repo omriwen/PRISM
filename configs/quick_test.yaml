@@ -1,0 +1,24 @@
+# Quick Test Configuration
+# Sparse sampling for fast iteration and testing
+
+image:
+  image_size: 1024
+
+telescope:
+  sample_diameter: 64
+  sample_length: 64
+  samples_per_line_meas: 9
+  n_samples: 64
+  fermat_sample: true
+
+training:
+  max_epochs: 1
+  n_epochs: 1000
+  lr: 0.001
+
+physics:
+  obj_name: europa
+
+log_dir: runs
+save_data: false  # Don't save during quick tests
+comment: "Quick test run for debugging"

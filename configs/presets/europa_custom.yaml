@@ -1,0 +1,20 @@
+# Example: Custom Europa Experiment
+# Demonstrates using 'extends' to inherit from production preset
+# This config inherits all production settings but overrides specific values
+# Usage: python main.py --config configs/presets/europa_custom.yaml --name europa_custom
+
+# Inherit from production preset
+extends: production
+
+# Override name and comment
+comment: "Custom Europa experiment with increased samples"
+
+# Override only the parameters we want to change
+telescope:
+  n_samples: 150  # Increase from production's 200
+  snr: 45         # Slightly higher SNR
+
+physics:
+  obj_name: europa
+
+# All other production settings (max_epochs, lr, etc.) are inherited automatically

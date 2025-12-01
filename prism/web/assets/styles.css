@@ -1,0 +1,156 @@
+/* SPIDS Dashboard Custom Styles */
+
+/* Custom tab styling */
+.custom-tab {
+    padding: 12px 24px !important;
+    border: none !important;
+    background-color: #f8f9fa !important;
+    color: #495057 !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+}
+
+.custom-tab:hover {
+    background-color: #e9ecef !important;
+    color: #212529 !important;
+}
+
+.custom-tab--selected {
+    background-color: #007bff !important;
+    color: white !important;
+    border-bottom: 3px solid #0056b3 !important;
+}
+
+/* Card styling improvements */
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #007bff;
+}
+
+/* Dropdown improvements */
+.Select-control {
+    border-radius: 4px !important;
+    border: 1px solid #ced4da !important;
+}
+
+.Select-control:hover {
+    border-color: #007bff !important;
+}
+
+/* Slider styling */
+.rc-slider-track {
+    background-color: #007bff !important;
+}
+
+.rc-slider-handle {
+    border-color: #007bff !important;
+}
+
+.rc-slider-handle:hover,
+.rc-slider-handle:active {
+    border-color: #0056b3 !important;
+    box-shadow: 0 0 5px #007bff !important;
+}
+
+/* Table styling */
+.dash-table-container {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dash-spreadsheet-container .dash-spreadsheet-inner table {
+    border-collapse: collapse;
+}
+
+.dash-spreadsheet-container .dash-spreadsheet-inner th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+/* Footer styling */
+footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.alert-info {
+    border-left-color: #17a2b8;
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+}
+
+/* Graph container */
+.js-plotly-plot {
+    border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .custom-tab {
+        padding: 8px 16px !important;
+        font-size: 0.9rem !important;
+    }
+}
+
+/* Loading spinner */
+._dash-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    min-height: 300px;
+}
+
+._dash-loading::after {
+    content: "";
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

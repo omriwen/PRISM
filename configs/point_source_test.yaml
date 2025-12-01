@@ -1,0 +1,29 @@
+# Point Source Test Configuration
+# For testing with synthetic point sources
+
+image:
+  image_size: 1024
+
+telescope:
+  n_samples: 100
+  sample_diameter: 100
+  fermat_sample: true
+
+training:
+  n_epochs: 1000
+  max_epochs: 10
+  lr: 0.001
+  loss_threshold: 0.001
+
+physics:
+  obj_name: europa
+
+point_source:
+  is_point_source: true
+  diameter: 3.0
+  spacing: 5.0
+  number: 4
+
+log_dir: runs
+save_data: true
+comment: "Point source reconstruction test"

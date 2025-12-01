@@ -1,0 +1,32 @@
+# Mo-PIE Algorithm Configuration Example
+# For use with main_mopie.py - motion-aware phase retrieval approach
+
+image:
+  image_size: 1024
+
+telescope:
+  n_samples: 100
+  sample_diameter: 100
+  fermat_sample: true
+  sample_sort: center
+
+training:
+  n_epochs: 500  # Mo-PIE typically needs more epochs
+  lr: 0.001
+
+physics:
+  obj_name: europa
+
+mopie:
+  lr_obj: 1.0
+  lr_probe: 1.0
+  fix_probe: true  # Keep probe fixed as known aperture
+  parallel_update: true  # Update from all line samples simultaneously
+  plot_every: 10  # Plot every 10 epochs
+  single_sample: false
+  rand_perm: false  # Don't randomize sample order
+  load_config_only: false
+
+log_dir: runs
+save_data: true
+comment: "Mo-PIE baseline reconstruction"

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPIDS Experiment Report</title>
+    <style>
+        {% include 'styles.css' %}
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>SPIDS Experiment Report</h1>
+        <div class="meta">
+            <p><strong>Generated:</strong> {{ timestamp }}</p>
+            <p><strong>Number of Experiments:</strong> {{ n_experiments }}</p>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="section">
+        <h2>Executive Summary</h2>
+
+        {% if summary.best_experiments %}
+        <div class="summary-box">
+            <h3>Best Results</h3>
+            <div class="metric-box">
+                <div class="label">Best Loss</div>
+                <div class="value">{{ summary.best_experiments.loss.value | format_float }}</div>
+                <div class="label">{{ summary.best_experiments.loss.name }}</div>
+            </div>
+            <div class="metric-box">
+                <div class="label">Best SSIM</div>
+                <div class="value">{{ summary.best_experiments.ssim.value | format_float }}</div>
+                <div class="label">{{ summary.best_experiments.ssim.name }}</div>
+            </div>
+            <div class="metric-box">
+                <div class="label">Best PSNR</div>
+                <div class="value">{{ summary.best_experiments.psnr.value | format_float }} dB</div>
+                <div class="label">{{ summary.best_experiments.psnr.name }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <table class="metric-table">
+            <thead>
+                <tr>
+                    <th>Experiment</th>
+                    <th>Final Loss</th>
+                    <th>SSIM</th>
+                    <th>PSNR (dB)</th>
+                    <th>Epochs</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in experiments %}
+                <tr>
+                    <td><strong>{{ exp.name }}</strong></td>
+                    <td>{{ exp.final_metrics.loss | format_float }}</td>
+                    <td>{{ exp.final_metrics.ssim | format_float }}</td>
+                    <td>{{ exp.final_metrics.psnr | format_float }}</td>
+                    <td>{{ exp.n_epochs }}</td>
+                    <td>{{ exp.duration | format_time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if summary.total_duration %}
+        <p><strong>Total Training Time:</strong> {{ summary.total_duration | format_time }}</p>
+        <p><strong>Average Epochs:</strong> {{ summary.avg_epochs | format_float }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Results Section -->
+    <div class="section">
+        <h2>Results</h2>
+
+        {% if figures.reconstruction_comparison %}
+        <div class="figure">
+            <img src="data:image/png;base64,{{ figures.reconstruction_comparison }}"
+                 alt="Reconstruction Comparison">
+            <p class="figure-caption">Figure 1: Ground truth and reconstructed images comparison</p>
+        </div>
+        {% endif %}
+
+        {% if figures.training_curves %}
+        <div class="figure">
+            <img src="data:image/png;base64,{{ figures.training_curves }}"
+                 alt="Training Curves">
+            <p class="figure-caption">Figure 2: Training curves showing loss, SSIM, and PSNR over epochs</p>
+        </div>
+        {% endif %}
+
+        {% if figures.kspace_coverage %}
+        <div class="figure">
+            <img src="data:image/png;base64,{{ figures.kspace_coverage }}"
+                 alt="K-Space Coverage">
+            <p class="figure-caption">Figure 3: K-space coverage visualization</p>
+        </div>
+        {% endif %}
+
+        {% if figures.metric_comparison and n_experiments > 1 %}
+        <div class="figure">
+            <img src="data:image/png;base64,{{ figures.metric_comparison }}"
+                 alt="Metric Comparison">
+            <p class="figure-caption">Figure 4: Metric comparison across experiments</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Configuration Details -->
+    <div class="section">
+        <h2>Configuration Details</h2>
+
+        {% for exp in experiments %}
+        <div class="experiment-card">
+            <h3>{{ exp.name }}</h3>
+
+            <table class="config-table">
+                <tr>
+                    <td>Timestamp</td>
+                    <td>{{ exp.timestamp }}</td>
+                </tr>
+                <tr>
+                    <td>Duration</td>
+                    <td>{{ exp.duration | format_time }}</td>
+                </tr>
+                <tr>
+                    <td>Converged</td>
+                    <td>
+                        {% if exp.converged %}
+                            <span class="badge badge-success">Yes</span>
+                        {% else %}
+                            <span class="badge badge-warning">No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Total Epochs</td>
+                    <td>{{ exp.n_epochs }}</td>
+                </tr>
+            </table>
+
+            <h4>Key Parameters</h4>
+            <table class="config-table">
+                {% if exp.config.object_name %}
+                <tr>
+                    <td>Object</td>
+                    <td>{{ exp.config.object_name }}</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.n_samples %}
+                <tr>
+                    <td>Number of Samples</td>
+                    <td>{{ exp.config.n_samples }}</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.pattern %}
+                <tr>
+                    <td>Sampling Pattern</td>
+                    <td>{{ exp.config.pattern }}</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.snr %}
+                <tr>
+                    <td>SNR</td>
+                    <td>{{ exp.config.snr }} dB</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.propagator_method %}
+                <tr>
+                    <td>Propagator Method</td>
+                    <td>{{ exp.config.propagator_method }}</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.learning_rate %}
+                <tr>
+                    <td>Learning Rate</td>
+                    <td>{{ exp.config.learning_rate }}</td>
+                </tr>
+                {% endif %}
+                {% if exp.config.max_epochs %}
+                <tr>
+                    <td>Max Epochs</td>
+                    <td>{{ exp.config.max_epochs }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Training History -->
+    <div class="section">
+        <h2>Training History</h2>
+
+        {% for exp in experiments %}
+        <h3>{{ exp.name }}</h3>
+
+        <div class="summary-box">
+            <h4>Convergence Analysis</h4>
+            <p><strong>Total Epochs:</strong> {{ exp.n_epochs }}</p>
+            <p><strong>Training Duration:</strong> {{ exp.duration | format_time }}</p>
+            <p><strong>Status:</strong>
+                {% if exp.converged %}
+                    <span class="badge badge-success">Converged</span>
+                {% else %}
+                    <span class="badge badge-warning">Did not converge</span>
+                {% endif %}
+            </p>
+
+            <h4>Final Metrics</h4>
+            <p><strong>Loss:</strong> {{ exp.final_metrics.loss | format_float }}</p>
+            <p><strong>SSIM:</strong> {{ exp.final_metrics.ssim | format_float }}</p>
+            <p><strong>PSNR:</strong> {{ exp.final_metrics.psnr | format_float }} dB</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Appendix -->
+    {% if include_appendix %}
+    <div class="section">
+        <h2>Appendix</h2>
+
+        {% for exp in experiments %}
+        <div class="experiment-card">
+            <h3>{{ exp.name }} - Complete Configuration</h3>
+
+            <div class="code-block">{{ exp.config | tojson(indent=2) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated by <strong>SPIDS</strong> (Sparse-aperture Imaging via Deep learning for Space)</p>
+        <p>Report generated on {{ timestamp }}</p>
+    </div>
+</body>
+</html>

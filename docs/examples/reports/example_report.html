@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRISM Experiment Report - Example</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            margin: 5px 0;
+            opacity: 0.9;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .section h2 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .config-item {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .config-item strong {
+            display: block;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .config-item span {
+            font-size: 1.1em;
+            color: #333;
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>PRISM Experiment Report</h1>
+        <p><strong>Experiment:</strong> freq_pattern_order_1_H</p>
+        <p><strong>Generated:</strong> 2025-11-20</p>
+        <p><strong>PRISM Version:</strong> 0.3.0</p>
+    </div>
+
+    <div class="success">
+        <strong>✓ Example Report</strong>
+        <p>This is an example report demonstrating the structure and formatting of PRISM automated reports. Generate your own reports using:</p>
+        <code>prism report runs/experiment --format html --output report.html</code>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Final Loss</strong></td>
+                    <td><span class="metric-value">0.0034</span></td>
+                    <td>Reconstruction error (lower is better)</td>
+                </tr>
+                <tr>
+                    <td><strong>SSIM</strong></td>
+                    <td><span class="metric-value">0.9234</span></td>
+                    <td>Structural similarity (0-1, higher is better)</td>
+                </tr>
+                <tr>
+                    <td><strong>PSNR</strong></td>
+                    <td><span class="metric-value">35.2 dB</span></td>
+                    <td>Peak signal-to-noise ratio (higher is better)</td>
+                </tr>
+                <tr>
+                    <td><strong>Training Time</strong></td>
+                    <td><span class="metric-value">45m 23s</span></td>
+                    <td>Total training duration</td>
+                </tr>
+                <tr>
+                    <td><strong>Epochs</strong></td>
+                    <td><span class="metric-value">847 / 1000</span></td>
+                    <td>Converged early with early stopping</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Configuration</h2>
+        <div class="config-grid">
+            <div class="config-item">
+                <strong>Object</strong>
+                <span>Europa</span>
+            </div>
+            <div class="config-item">
+                <strong>Samples</strong>
+                <span>100</span>
+            </div>
+            <div class="config-item">
+                <strong>Pattern</strong>
+                <span>Fermat Spiral</span>
+            </div>
+            <div class="config-item">
+                <strong>SNR</strong>
+                <span>40 dB</span>
+            </div>
+            <div class="config-item">
+                <strong>Propagator</strong>
+                <span>Fraunhofer</span>
+            </div>
+            <div class="config-item">
+                <strong>Learning Rate</strong>
+                <span>0.001</span>
+            </div>
+            <div class="config-item">
+                <strong>Optimizer</strong>
+                <span>Adam</span>
+            </div>
+            <div class="config-item">
+                <strong>Loss Function</strong>
+                <span>L1</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Training History</h2>
+        <div class="note">
+            <strong>Note:</strong> In production reports, this section includes:
+            <ul>
+                <li>Interactive training curves (loss, SSIM, PSNR vs. epoch)</li>
+                <li>Convergence analysis with trend indicators</li>
+                <li>Learning rate schedule visualization</li>
+                <li>Memory usage and GPU utilization stats</li>
+            </ul>
+        </div>
+        <p><em>Visualization placeholder - production reports include embedded Plotly charts</em></p>
+    </div>
+
+    <div class="section">
+        <h2>Results</h2>
+        <div class="note">
+            <strong>Note:</strong> In production reports, this section includes:
+            <ul>
+                <li>Side-by-side comparison of ground truth and reconstruction</li>
+                <li>Difference maps with error visualization</li>
+                <li>K-space coverage heatmaps</li>
+                <li>Sampling pattern visualization</li>
+                <li>All figures at 300 DPI for publication quality</li>
+            </ul>
+        </div>
+        <p><em>Visualization placeholder - production reports include high-DPI embedded images</em></p>
+    </div>
+
+    <div class="section">
+        <h2>Report Features</h2>
+        <h3>Available Report Formats</h3>
+        <ul>
+            <li><strong>HTML:</strong> Interactive reports with embedded visualizations</li>
+            <li><strong>PDF:</strong> Publication-ready reports with 300 DPI figures</li>
+        </ul>
+
+        <h3>Report Types</h3>
+        <ul>
+            <li><strong>Single Experiment:</strong> Comprehensive analysis of one training run</li>
+            <li><strong>Multi-Experiment:</strong> Side-by-side comparison of multiple experiments</li>
+        </ul>
+
+        <h3>Customization Options</h3>
+        <ul>
+            <li><strong>Custom Templates:</strong> Use Jinja2 templates for branded reports</li>
+            <li><strong>Section Selection:</strong> Include/exclude specific sections</li>
+            <li><strong>Style Customization:</strong> Override CSS for custom styling</li>
+        </ul>
+
+        <h3>Usage Examples</h3>
+        <pre><code># Generate HTML report
+prism report runs/experiment --format html
+
+# Generate PDF report
+prism report runs/experiment --format pdf --output report.pdf
+
+# Multi-experiment comparison
+prism report runs/exp1 runs/exp2 runs/exp3 --format pdf
+
+# Custom template
+prism report runs/experiment --template custom.html</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>About This Example</h2>
+        <p>This is a simplified example report demonstrating the structure and styling of PRISM automated reports. Production reports generated from real experiment data include:</p>
+        <ul>
+            <li>✓ Complete metadata from experiment checkpoints</li>
+            <li>✓ Embedded high-resolution visualizations (300 DPI)</li>
+            <li>✓ Interactive Plotly charts for data exploration</li>
+            <li>✓ Detailed configuration dumps with YAML formatting</li>
+            <li>✓ Statistical analysis and convergence metrics</li>
+            <li>✓ Hardware and performance information</li>
+            <li>✓ Full reproducibility information</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>Generated by PRISM v0.3.0 - Sparse Phase Imaging by Diffraction Spectroscopy</p>
+        <p>For more information, visit the <a href="https://github.com/your-username/PRISM">PRISM GitHub repository</a></p>
+    </div>
+</body>
+</html>

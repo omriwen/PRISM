@@ -1,0 +1,20 @@
+# Production Preset
+# High-quality reconstruction preset for publication-ready results
+# Usage: python main.py --config configs/presets/production.yaml --obj europa --name prod_run
+
+comment: "Production preset for high-quality reconstruction"
+save_data: true
+
+telescope:
+  n_samples: 200
+  sample_length: 0  # Point sampling (more accurate than line sampling)
+  fermat_sample: true
+  snr: 40  # Realistic noise level
+
+training:
+  max_epochs: 25
+  n_epochs: 1000
+  n_epochs_init: 100
+  max_epochs_init: 100
+  loss_threshold: 0.001
+  lr: 0.001

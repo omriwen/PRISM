@@ -1,0 +1,18 @@
+# Debug Preset
+# Minimal preset for quick testing without saving data
+# Usage: python main.py --config configs/presets/debug.yaml --obj europa --name debug
+
+comment: "Debug preset for minimal testing without saving"
+save_data: false
+
+telescope:
+  n_samples: 16
+  sample_length: 0
+  fermat_sample: true
+
+training:
+  max_epochs: 1
+  n_epochs: 100
+  n_epochs_init: 10
+  max_epochs_init: 1
+  loss_threshold: 0.01

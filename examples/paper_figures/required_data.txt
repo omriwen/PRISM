@@ -1,0 +1,234 @@
+Required Experiment Data for Reproducing Paper Figures
+=====================================================
+
+This file documents the specific SPIDS experiment runs needed to reproduce
+all figures in the publication.
+
+## Figure 1: Neural Network Architecture
+
+**Data Required**: None (generated from code structure)
+
+This figure is created programmatically from the model architecture and
+does not require experiment data.
+
+## Figure 2: Detector Configuration and Trajectories
+
+**Data Required**: Minimal (sampling patterns only)
+
+Generates sampling patterns on-the-fly. No experiment runs needed.
+
+Optional: Load example experiment to show real coverage:
+- runs/europa_baseline_100/ (any small experiment)
+
+## Figure 4: Comprehensive Validation and Resolution Analysis
+
+**Data Required**: Multiple experiment runs
+
+### Core Validation Experiments
+
+1. **Europa Baseline (100 samples)**
+   - Run command:
+     ```bash
+     uv run python main.py --obj_name europa --n_samples 100 \
+         --fermat --name europa_baseline_100
+     ```
+   - Location: `runs/europa_baseline_100/`
+   - Size: ~150MB
+
+2. **Europa Comparison - ePIE Baseline**
+   - Run command:
+     ```bash
+     uv run python examples/baselines/epie_baseline.py \
+         --obj_name europa --n_samples 100 \
+         --fermat --name epie_europa_100
+     ```
+   - Location: `runs/epie_europa_100/`
+   - Size: ~50MB
+
+3. **Titan Baseline (100 samples)**
+   - Run command:
+     ```bash
+     uv run python main.py --obj_name titan --n_samples 100 \
+         --fermat --name titan_baseline_100
+     ```
+   - Location: `runs/titan_baseline_100/`
+   - Size: ~150MB
+
+### Resolution Scaling Experiments
+
+For sample efficiency analysis (Figure 4, Panel C):
+
+4. **Europa 50 samples**
+   ```bash
+   uv run python main.py --obj_name europa --n_samples 50 \
+       --fermat --name europa_50_samples
+   ```
+
+5. **Europa 150 samples**
+   ```bash
+   uv run python main.py --obj_name europa --n_samples 150 \
+       --fermat --name europa_150_samples
+   ```
+
+6. **Europa 200 samples**
+   ```bash
+   uv run python main.py --obj_name europa --n_samples 200 \
+       --fermat --name europa_200_samples
+   ```
+
+### Multi-Object Validation
+
+For generalization analysis (Figure 4, Panel D):
+
+7. **Betelgeuse Baseline**
+   ```bash
+   uv run python main.py --obj_name betelgeuse --n_samples 100 \
+       --fermat --name betelgeuse_baseline_100
+   ```
+
+8. **Neptune Baseline**
+   ```bash
+   uv run python main.py --obj_name neptune --n_samples 100 \
+       --fermat --name neptune_baseline_100
+   ```
+
+## Summary of Required Storage
+
+Total storage for all experiments: ~1.2 GB
+
+- Core validation (3 experiments): ~350 MB
+- Resolution scaling (3 experiments): ~450 MB
+- Multi-object (2 experiments): ~300 MB
+- Overhead and metadata: ~100 MB
+
+## Abbreviated Dataset (Minimum for Basic Figures)
+
+If storage is limited, these 3 experiments cover the main results:
+
+1. europa_baseline_100 (SPIDS performance)
+2. epie_europa_100 (comparison baseline)
+3. europa_150_samples (resolution scaling)
+
+Total: ~350 MB
+
+## Re-running All Experiments
+
+Use this script to regenerate all required data:
+
+```bash
+#!/bin/bash
+# reproduce_experiments.sh
+
+set -e
+
+echo "Reproducing all paper experiments..."
+echo "This may take several hours depending on your hardware."
+echo ""
+
+# Core validation
+echo "1/8: Europa baseline (100 samples)..."
+uv run python main.py --obj_name europa --n_samples 100 --fermat --name europa_baseline_100
+
+echo "2/8: ePIE baseline comparison..."
+uv run python examples/baselines/epie_baseline.py --obj_name europa --n_samples 100 --fermat --name epie_europa_100
+
+echo "3/8: Titan baseline (100 samples)..."
+uv run python main.py --obj_name titan --n_samples 100 --fermat --name titan_baseline_100
+
+# Resolution scaling
+echo "4/8: Europa 50 samples..."
+uv run python main.py --obj_name europa --n_samples 50 --fermat --name europa_50_samples
+
+echo "5/8: Europa 150 samples..."
+uv run python main.py --obj_name europa --n_samples 150 --fermat --name europa_150_samples
+
+echo "6/8: Europa 200 samples..."
+uv run python main.py --obj_name europa --n_samples 200 --fermat --name europa_200_samples
+
+# Multi-object validation
+echo "7/8: Betelgeuse baseline..."
+uv run python main.py --obj_name betelgeuse --n_samples 100 --fermat --name betelgeuse_baseline_100
+
+echo "8/8: Neptune baseline..."
+uv run python main.py --obj_name neptune --n_samples 100 --fermat --name neptune_baseline_100
+
+echo ""
+echo "All experiments complete!"
+echo "Total runs directory size:"
+du -sh runs/
+```
+
+## Downloading Pre-Run Experiments
+
+If available, pre-run experiment data may be downloaded from:
+
+**Data Repository**: [URL to be added when data is published]
+
+**DOI**: [To be assigned upon publication]
+
+**Archive Format**: tar.gz or zip
+
+**Download and Extract**:
+```bash
+# Example (URL to be updated)
+wget https://example.com/spids_paper_data.tar.gz
+tar -xzf spids_paper_data.tar.gz
+mv spids_paper_data/* runs/
+```
+
+## Verifying Data Integrity
+
+After downloading or generating experiments, verify:
+
+```bash
+# Check all required experiments exist
+required_experiments=(
+    "europa_baseline_100"
+    "epie_europa_100"
+    "titan_baseline_100"
+    "europa_50_samples"
+    "europa_150_samples"
+    "europa_200_samples"
+    "betelgeuse_baseline_100"
+    "neptune_baseline_100"
+)
+
+for exp in "${required_experiments[@]}"; do
+    if [ -d "runs/$exp" ]; then
+        echo "✓ $exp exists"
+        # Check for required files
+        if [ -f "runs/$exp/checkpoint.pt" ]; then
+            echo "  ✓ checkpoint.pt present"
+        else
+            echo "  ✗ checkpoint.pt missing"
+        fi
+    else
+        echo "✗ $exp missing"
+    fi
+done
+```
+
+## Expected Metrics (for Validation)
+
+When running experiments, expect approximately these metrics:
+
+| Experiment | Final SSIM | Final RMSE | Coverage (%) |
+|------------|-----------|-----------|--------------|
+| europa_baseline_100 | ~0.85-0.92 | ~0.05-0.10 | ~85-95 |
+| titan_baseline_100 | ~0.80-0.88 | ~0.08-0.12 | ~85-95 |
+| betelgeuse_baseline_100 | ~0.75-0.85 | ~0.10-0.15 | ~80-90 |
+| neptune_baseline_100 | ~0.82-0.90 | ~0.06-0.11 | ~85-95 |
+
+Note: Exact values may vary due to random initialization and hardware differences.
+
+## Notes
+
+- All experiments use Fermat spiral sampling (--fermat flag)
+- Default parameters (max_epochs, learning rate) are used
+- GPU recommended but not required (CPU will be slower)
+- Experiments can be run in parallel if multiple GPUs available
+- Random seeds set in code for reproducibility (where possible)
+
+## Last Updated
+
+2025-01-17 (Phase 3, Task 14)

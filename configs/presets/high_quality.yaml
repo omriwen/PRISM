@@ -1,0 +1,20 @@
+# High Quality Preset
+# Maximum fidelity preset with more samples and longer training
+# Usage: python main.py --config configs/presets/high_quality.yaml --obj europa --name hq_run
+
+comment: "High-quality preset for maximum reconstruction fidelity"
+save_data: true
+
+telescope:
+  n_samples: 240
+  sample_length: 0
+  fermat_sample: true
+  snr: 50  # High SNR for best quality
+
+training:
+  max_epochs: 50
+  n_epochs: 2000
+  n_epochs_init: 200
+  max_epochs_init: 200
+  loss_threshold: 0.0005
+  lr: 0.001

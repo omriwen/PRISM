@@ -1,0 +1,131 @@
+{
+  "$schema": "https://example.com/claude-config.schema.json",
+  "projectName": "PRISM",
+  "description": "Progressive Reconstruction from Imaging with Sparse Measurements - Deep learning-based astronomical imaging system",
+  "language": "python",
+
+  "python": {
+    "preferredInterpreter": "python3.12",
+    "venvPath": ".venv",
+    "envActivation": "source .venv/bin/activate",
+    "packageManager": "uv",
+    "installCommand": "uv add {packages}",
+    "syncCommand": "uv sync",
+    "runCommand": "uv run {cmd}"
+  },
+
+  "context": {
+    "root": ".",
+    "include": [
+      "*.py",
+      "models.py",
+      "optics.py",
+      "sampling.py",
+      "image_utils.py",
+      "visualization.py",
+      "consts_and_criteria.py",
+      "pyproject.toml",
+      "uv.lock",
+      "CLAUDE.md",
+      "README.md"
+    ],
+    "exclude": [
+      ".venv/**",
+      "**/__pycache__/**",
+      ".git/**",
+      "runs/**",
+      "data/**",
+      "results/**",
+      "figs/**",
+      "**/*.ipynb_checkpoints/**",
+      "GEMINI.md",
+      "AGENTS.md",
+      ".gemini/**",
+      ".cursor/**"
+    ],
+    "maxFiles": 500,
+    "maxTotalMB": 40
+  },
+
+  "domain": {
+    "type": "astronomical_imaging",
+    "architecture": "progressive_neural_training",
+    "data_flow": "Telescope Measurements → Progressive Training → GenCropSpidsNet → High-Resolution Reconstruction",
+    "core_models": [
+      "GenCropSpidsNet", "TelescopeAgg", "LossAgg", "Telescope"
+    ],
+    "sampling_patterns": ["fermat", "star", "random"],
+    "astronomical_objects": ["europa", "titan", "betelgeuse", "neptune"],
+    "core_constraint": "Realistic telescope physics with progressive measurement accumulation"
+  },
+
+  "memory": {
+    "enabled": true,
+    "store": "file",
+    "path": ".claude/memory",
+    "projectNotes": ".claude/notes.md"
+  },
+
+  "tools": {
+    "shell": {
+      "enabled": true,
+      "cwd": ".",
+      "env": {"PYTHONUTF8": "1"}
+    },
+    "notebooks": {
+      "enabled": true,
+      "defaultKernel": "PRISM",
+      "openCommand": "uv run jupyter lab",
+      "nbconvertExecute": "uv run jupyter nbconvert --to notebook --execute {path} --output-dir results",
+      "cellMarkers": {
+        "markdown": "# %% [markdown]",
+        "code": "# %%"
+      }
+    },
+    "testing": {
+      "enabled": true,
+      "pytest": "uv run pytest -q",
+      "coverage": "uv run pytest --cov=. --cov-report=html"
+    },
+    "lint": {
+      "ruff": "uv run ruff check .",
+      "black": "uv run black .",
+      "isort": "uv run isort ."
+    },
+    "typecheck": {
+      "pyright": "uv run pyright"
+    }
+  },
+
+  "shortcuts": {
+    "/init": ["uv venv -p 3.12", "uv sync"],
+    "/setup-astro": [
+      "uv add torch torchvision numpy scipy matplotlib opencv-python-headless pillow plotly seaborn pyyaml jupyter notebook tensorboard"
+    ],
+    "/test": ["uv run pytest -q"],
+    "/fmt": ["uv run ruff check --fix .", "uv run black .", "uv run isort ."],
+    "/main": ["uv run python main.py --obj_name europa --n_samples 100 --fermat --name test_run"],
+    "/quick": ["uv run python main.py --obj_name europa --n_samples 64 --sample_length 64 --samples_per_line_meas 9 --max_epochs 1 --fermat --debug --name quick_test"],
+    "/epie": ["uv run python main_epie.py --obj_name europa --n_samples 100 --name epie_baseline"],
+    "/tensorboard": ["tensorboard --logdir runs/"],
+    "/kernel-install": ["uv run python -m ipykernel install --user --name PRISM --display-name PRISM"],
+    "/kernel-list": ["jupyter kernelspec list"],
+    "/jupyter": ["uv run jupyter lab --no-browser"]
+  },
+
+  "coding_style": {
+    "docstring_style": "google",
+    "type_hints": "required",
+    "line_length": 88,
+    "prefer_vectorized": "Use PyTorch/numpy operations over Python loops",
+    "error_handling": "Specific exceptions, validate tensor shapes and physics parameters",
+    "imports": "Group: stdlib, third-party, local"
+  },
+
+  "validation_rules": {
+    "model_outputs": "Must return tensors with proper device placement and grad tracking",
+    "physics_simulation": "Maintain realistic telescope parameters and noise models",
+    "required_imports": ["torch", "numpy", "matplotlib", "opencv"],
+    "checkpoint_structure": "Include model state, training metrics, sample points, and reconstruction"
+  }
+}

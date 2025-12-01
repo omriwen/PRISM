@@ -1,0 +1,21 @@
+# Mo-PIE Baseline Preset
+# Motion-aware phase retrieval comparison baseline
+# Usage: python main_mopie.py --config configs/presets/mopie_baseline.yaml --obj europa --name mopie_test
+
+comment: "Mo-PIE baseline preset for motion-aware phase retrieval comparison"
+save_data: true
+
+telescope:
+  n_samples: 200
+  sample_length: 0
+  fermat_sample: true
+
+training:
+  n_epochs: 500
+
+mopie:
+  lr_obj: 1.0
+  lr_probe: 1.0
+  fix_probe: true
+  parallel_update: true
+  plot_every: 10

@@ -1,0 +1,65 @@
+# Default PRISM Configuration
+# This file contains sensible defaults for PRISM experiments
+
+image:
+  image_size: 1024
+  crop: false
+  invert: false
+
+telescope:
+  sample_diameter: 100
+  sample_shape: circle
+  sample_length: 0
+  roi_shape: circle
+  sample_sort: center
+  n_samples: 200
+  n_angs: 4
+  star_sample: false
+  fermat_sample: false
+  blur: false
+
+model:
+  use_bn: true
+  output_activation: none
+  use_leaky: true
+  middle_activation: sigmoid
+  complex_data: false
+
+training:
+  n_epochs: 1000
+  max_epochs: 1
+  n_epochs_init: 100
+  max_epochs_init: 100
+  initialization_target: circle
+
+  # Loss function type
+  # Options:
+  #   - l1: L1 loss (mean absolute error) - default, fast
+  #   - l2: L2 loss (mean squared error) - fast
+  #   - ssim: Structural Similarity Index loss (single scale) - slower, perceptual
+  #   - ms-ssim: Multi-Scale SSIM loss (5 scales) - slowest, most perceptual
+  # Note: SSIM-based losses operate in measurement space (diffraction patterns)
+  # and use DSSIM formulation: (1 - SSIM) / 2 for range [0, 0.5]
+  loss_type: l1
+
+  new_weight: 1.0
+  f_weight: 0.0001
+  lr: 0.001
+  loss_threshold: 0.001
+  use_amsgrad: false
+  device_num: 0
+  use_cuda: true
+
+physics:
+  dxf: 0.01
+  obj_name: europa
+
+point_source:
+  is_point_source: false
+  diameter: 3.0
+  spacing: 5.0
+  number: 4
+
+log_dir: runs
+save_data: true
+comment: ""

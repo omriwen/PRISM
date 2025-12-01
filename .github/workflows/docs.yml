@@ -1,0 +1,51 @@
+name: Build and Deploy Documentation
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        uv sync
+
+    - name: Build documentation
+      run: |
+        cd docs/api
+        uv run make html
+
+    - name: Check for documentation warnings
+      run: |
+        cd docs/api
+        uv run make html 2>&1 | tee build.log
+        # Fail if there are errors (but not warnings)
+        if grep -q "ERROR" build.log; then
+          echo "Documentation build has errors!"
+          exit 1
+        fi
+
+    - name: Deploy to GitHub Pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/api/_build/html
+        force_orphan: true

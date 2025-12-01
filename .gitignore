@@ -1,0 +1,147 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.egg
+
+# Virtual environments
+.venv
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors/IDEs
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# Test/coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+coverage.json
+coverage.xml
+coverage_output.txt
+*.cover
+
+# Static analysis
+.mypy_cache/
+.ruff_cache/
+
+# uv package manager
+.uv_cache/
+
+# Environment/secrets
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Packaging
+.eggs/
+pip-wheel-metadata/
+
+# C extensions
+*.so
+*.pyd
+*$py.class
+
+# Git merge artifacts
+*.orig
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*.txt
+*_BASE_*.txt
+*_LOCAL_*.txt
+*_REMOTE_*.txt
+
+# PRISM-specific experiment outputs
+# Keep directory structure but ignore all experiment runs
+runs/*
+!runs/.gitkeep
+data/
+
+# PRISM-specific notebooks (contain large outputs and experimental data)
+# Ignore notebooks in root directory and legacy locations
+/*.ipynb
+fermat_spirals.ipynb
+visualizaing_lpf.ipynb
+huygens.ipynb
+noise_analysis.ipynb
+two_step_fresnel.ipynb
+param_calc.ipynb
+exploring_performance.ipynb
+
+# Generated figures (moved to legacy/paper_figures/)
+# Note: examples/notebooks/ contains tutorial templates and should be tracked
+/notebooks/
+
+# Note: docs/ is now tracked for refactoring documentation
+
+# Large image files
+*.tiff
+*.tif
+*.raw
+
+# Generated images (can be regenerated from scripts)
+pattern_gallery.png
+**/gallery_*.png
+
+# Temporary files
+*.tmp
+*.temp
+temp_*
+debug_*
+test_output_*
+*.bak
+*.backup
+
+# Logs
+*.log
+logs/
+*.out
+
+# AI Assistant/Editor config (most tracked for sharing - useful for developers)
+.cursorrules
+.claude/settings.local.json
+.codex/
+
+# MCP server configurations (contain machine-specific absolute paths)
+.mcp.json
+.cursor/mcp.json
+.gemini/settings.json
+
+# Project-specific files
+Ideas_and_ToDos.md
+PERSONAL_PATH_EXPOSURE.md
+
+# Temporary AI Assistant files
+CLAUDEEEE.md
+GEMINIIIIII.md
+
+# Archived files (deprecated AI assistant docs)
+.archive/
+
+# Augment AI
+.augment/
+
+# Legacy directory (removed in Phase 3, archived in git tags)
+# Ignore if recreated locally for development/testing
+legacy/
+docs/api/_build/
