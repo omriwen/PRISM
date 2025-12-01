@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__fetch__*",
+      "mcp__sequential-thinking__*",
+      "mcp__memory__*"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
