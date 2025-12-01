@@ -91,12 +91,12 @@ PRISM/
 │   ├── unit/                       # Unit tests
 │   ├── integration/                # Integration tests
 │   └── benchmarks/                 # Performance benchmarks
-├── tools/                          # Development tools
-│   ├── update_knowledge_graph.py   # Knowledge graph updater
-│   └── query_knowledge_graph.py    # Knowledge graph query tool
-├── .memory/                        # Knowledge graph storage (tracked in git)
+├── .memory/                        # Knowledge graph (Claude updates automatically)
 │   ├── memory.jsonl                # MCP memory graph data
-│   └── .last_update                # Update metadata
+│   ├── .last_update                # Update metadata
+│   ├── update_knowledge_graph.py   # Manual AST-based updater (optional)
+│   ├── validate_graph.py           # Sync validation (pre-commit hook)
+│   └── test_queries.py             # Graph validation tests
 ├── configs/                        # YAML configuration files
 ├── main.py                         # Main PRISM entry point
 ├── main_epie.py                    # ePIE baseline entry point

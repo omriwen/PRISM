@@ -19,6 +19,7 @@ from ..optics.illumination import (
     IlluminationSource,
     IlluminationSourceType,
     create_illumination_field,
+    create_spatial_illumination_field,
 )
 from ..propagators.angular_spectrum import AngularSpectrumPropagator
 from ..propagators.base import CoherenceMode
@@ -472,6 +473,8 @@ class Microscope(FourFSystem):
         illumination_center: Optional[List[float]] = None,
         illumination_radius: Optional[float] = None,
         illumination_source_type: IlluminationSourceType = IlluminationSourceType.POINT,
+        illumination_spatial_center: Optional[List[float]] = None,
+        illumination_source_distance: Optional[float] = None,
         coherence_mode: CoherenceMode = CoherenceMode.COHERENT,
         source_intensity: Optional[torch.Tensor] = None,
         n_source_points: int = 100,
@@ -529,6 +532,13 @@ class Microscope(FourFSystem):
             - POINT (default): Tilted plane wave, equivalent to scanning aperture
             - GAUSSIAN: Gaussian intensity profile (partial coherence)
             - CIRCULAR: Circular (top-hat) profile
+        illumination_spatial_center : List[float], optional
+            Source position [y, x] in meters for spatial illumination mode.
+            If provided, uses spatial illumination with finite-distance source.
+            **Mutually exclusive** with aperture_center and illumination_center.
+        illumination_source_distance : float, optional
+            Source-to-object distance in meters. Required when using
+            illumination_spatial_center.
         coherence_mode : CoherenceMode, default=CoherenceMode.COHERENT
             Illumination coherence mode:
             - COHERENT: Standard coherent amplitude transfer (laser illumination)
@@ -592,11 +602,18 @@ class Microscope(FourFSystem):
             )
 
         # Check for mutually exclusive parameters
-        if aperture_center is not None and illumination_center is not None:
+        mode_params = [
+            aperture_center is not None,
+            illumination_center is not None,
+            illumination_spatial_center is not None,
+        ]
+        if sum(mode_params) > 1:
             raise ValueError(
-                "aperture_center and illumination_center are mutually exclusive. "
-                "Use aperture_center for scanning aperture mode (k-space position in pixels), "
-                "or illumination_center for scanning illumination mode (k-space position in 1/m)."
+                "aperture_center, illumination_center, and illumination_spatial_center "
+                "are mutually exclusive. Choose one scanning mode:\n"
+                "- aperture_center: Scanning aperture mode (k-space position in pixels)\n"
+                "- illumination_center: Angular illumination mode (k-space position in 1/m)\n"
+                "- illumination_spatial_center: Spatial illumination mode (position in meters)"
             )
 
         # Validate input with input_mode support
@@ -605,6 +622,22 @@ class Microscope(FourFSystem):
             input_mode=input_mode,
             input_pixel_size=input_pixel_size,
         )
+
+        # SPIDS spatial illumination mode: finite-distance source, spherical phase
+        if illumination_spatial_center is not None:
+            if illumination_source_distance is None:
+                raise ValueError(
+                    "illumination_source_distance is required when using "
+                    "illumination_spatial_center"
+                )
+            return self._forward_spatial_illumination(
+                field=field,
+                spatial_center=illumination_spatial_center,
+                source_distance=illumination_source_distance,
+                illumination_radius=illumination_radius,
+                illumination_source_type=illumination_source_type,
+                add_noise=add_noise,
+            )
 
         # SPIDS scanning illumination mode: tilted illumination, detect at DC
         if illumination_center is not None:
@@ -929,6 +962,129 @@ class Microscope(FourFSystem):
             image = self._add_detector_noise(image)
 
         # Restore original dimensions
+        if squeeze_output:
+            image = image.squeeze()
+
+        return image
+
+    def _forward_spatial_illumination(
+        self,
+        field: Tensor,
+        spatial_center: Union[List[float], Tuple[float, float]],
+        source_distance: float,
+        illumination_radius: Optional[float] = None,
+        illumination_source_type: Optional[IlluminationSourceType] = None,
+        add_noise: bool = False,
+    ) -> Tensor:
+        """Forward pass using spatial illumination scanning.
+
+        Models a physically-shifted illumination source at finite distance.
+        Unlike angular illumination (tilted plane wave from infinity), this
+        creates position-dependent illumination angles from the finite source.
+
+        Parameters
+        ----------
+        field : Tensor
+            Input complex field at object plane. Shape: (H, W) or (B, C, H, W).
+        spatial_center : List[float] or Tuple[float, float]
+            Source position [y, x] in meters (object plane coordinates).
+        source_distance : float
+            Source-to-object distance in meters.
+        illumination_radius : float, optional
+            Physical width of source in meters.
+            For GAUSSIAN: sigma. For CIRCULAR: radius.
+        illumination_source_type : IlluminationSourceType, optional
+            Source geometry type. Defaults to POINT.
+        add_noise : bool
+            Whether to add detector noise (default: False).
+
+        Returns
+        -------
+        Tensor
+            Intensity measurement.
+
+        Notes
+        -----
+        The spatial illumination forward model:
+
+        1. Create illumination field with shifted envelope and spherical phase:
+           E_illum = A(x - x₀, y - y₀) × exp(i·k·r²/(2z))
+           where r² = (x-x₀)² + (y-y₀)²
+
+        2. Illuminate object: E_obj_illum = E_obj × E_illum
+
+        3. FFT to k-space: Ẽ = FFT(E_obj_illum)
+
+        4. Apply detection aperture at DC: Ẽ_filtered = Ẽ × H_detect(k)
+
+        5. IFFT and take intensity: I = |IFFT(Ẽ_filtered)|²
+
+        For a far source (large z), the spherical phase approaches a tilted
+        plane wave, recovering the angular illumination limit.
+        """
+        if illumination_source_type is None:
+            illumination_source_type = IlluminationSourceType.POINT
+
+        # Handle input dimensions
+        squeeze_output = False
+        if field.ndim == 2:
+            field = field.unsqueeze(0).unsqueeze(0)
+            squeeze_output = True
+        elif field.ndim == 3:
+            field = field.unsqueeze(0)
+            squeeze_output = True
+
+        device = field.device
+
+        # Create illumination source config
+        # Note: k_center is not used for spatial mode; using [0,0] as placeholder
+        source_kwargs: Dict[str, Any] = {
+            "source_type": illumination_source_type,
+            "k_center": [0.0, 0.0],  # Placeholder, not used for spatial mode
+        }
+
+        # Add size parameters for finite sources
+        if illumination_source_type == IlluminationSourceType.GAUSSIAN:
+            if illumination_radius is None:
+                raise ValueError("GAUSSIAN source requires illumination_radius (sigma)")
+            source_kwargs["sigma"] = illumination_radius
+        elif illumination_source_type == IlluminationSourceType.CIRCULAR:
+            if illumination_radius is None:
+                raise ValueError("CIRCULAR source requires illumination_radius")
+            source_kwargs["radius"] = illumination_radius
+
+        source = IlluminationSource(**source_kwargs)
+
+        # Create spatial illumination field (envelope + spherical phase)
+        illum_field = create_spatial_illumination_field(
+            grid=self.grid,
+            source=source,
+            spatial_center=spatial_center,
+            source_distance=source_distance,
+            device=device,
+        )
+
+        # Illuminate object
+        field_illuminated = field * illum_field.unsqueeze(0).unsqueeze(0)
+
+        # Propagate to k-space
+        field_kspace = self.propagate_to_kspace(field_illuminated)
+
+        # Apply detection aperture at DC (full pupil)
+        detection_mask = self.generate_aperture_mask(
+            center=[0.0, 0.0],
+            radius=self.pupil_radius_pixels,
+        ).to(device)
+
+        field_kspace_filtered = field_kspace * detection_mask
+
+        # Propagate back to spatial domain
+        image = self.propagate_to_spatial(field_kspace_filtered)
+
+        # Add noise if requested
+        if add_noise:
+            image = self._add_detector_noise(image)
+
         if squeeze_output:
             image = image.squeeze()
 

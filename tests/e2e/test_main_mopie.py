@@ -52,3 +52,24 @@ class TestMainMoPIEExecution:
         run_dir = tmp_path / run_name
         assert run_dir.exists()
         assert (run_dir / "checkpoint.pt").exists()
+
+
+class TestMainMoPIELineSampling:
+    """Test main_mopie.py with line sampling enabled."""
+
+    @pytest.mark.e2e
+    def test_mopie_line_sampling_completes(
+        self, run_subprocess, project_root, minimal_mopie_line_args, tmp_path
+    ):
+        """Test that main_mopie.py completes with line sampling enabled."""
+        cmd = [
+            sys.executable,
+            str(project_root / "main_mopie.py"),
+            *minimal_mopie_line_args,
+            "--name",
+            f"e2e_mopie_line_{tmp_path.name}",
+            "--log_dir",
+            str(tmp_path),
+        ]
+        result = run_subprocess(cmd, timeout=180)
+        assert result.returncode == 0, f"main_mopie.py with line sampling failed:\n{result.stderr}"

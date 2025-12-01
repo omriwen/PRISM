@@ -1,17 +1,24 @@
-# Update Knowledge Graph
+# Update Knowledge Graph (Manual)
 
-Update the PRISM knowledge graph with changes from the codebase.
+Manually update the PRISM knowledge graph when automatic updates by Claude are insufficient.
+
+## When to Use This Command
+
+This slash command is for **manual updates only**. Claude automatically updates the knowledge graph during normal conversations when Python files in `prism/` are modified.
+
+Use this command when:
+- You need a full rescan of the codebase
+- The graph has drifted significantly out of sync
+- You're debugging graph issues
 
 ## Instructions
-
-You are updating the PRISM knowledge graph stored in `.memory/memory.jsonl`. This graph enables 10x faster component lookups for AI agents navigating the codebase.
 
 ### Step 1: Check Current State
 
 First, run the status check to see what needs updating:
 
 ```bash
-uv run python tools/update_knowledge_graph.py --status
+uv run python .memory/update_knowledge_graph.py --status
 ```
 
 ### Step 2: Scan for Changes
@@ -19,7 +26,7 @@ uv run python tools/update_knowledge_graph.py --status
 If there are changes since the last update, run an incremental scan:
 
 ```bash
-uv run python tools/update_knowledge_graph.py --incremental --dry-run
+uv run python .memory/update_knowledge_graph.py --incremental --dry-run
 ```
 
 This will show:
@@ -83,7 +90,7 @@ After updates:
 For a complete refresh of the knowledge graph:
 
 ```bash
-uv run python tools/update_knowledge_graph.py --full --dry-run
+uv run python .memory/update_knowledge_graph.py --full --dry-run
 ```
 
 Then recreate the entire graph using MCP tools.
@@ -93,3 +100,4 @@ Then recreate the entire graph using MCP tools.
 - The graph schema is documented in `docs/knowledge-graph-schema.md`
 - Always update `.memory/.last_update` after changes
 - The memory file is tracked in git for sharing across developers
+- A pre-commit hook warns (but doesn't block) if the graph is out of sync

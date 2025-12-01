@@ -21,6 +21,12 @@ pixel_to_k_shift
     Convert pixel-space shift to k-space shift.
 k_shift_to_pixel
     Convert k-space shift to pixel coordinates.
+pixel_to_spatial
+    Convert pixel shift to spatial position in meters.
+spatial_to_pixel
+    Convert spatial position to pixel shift.
+spatial_position_to_effective_k
+    Calculate effective k-space shift from spatial source position.
 
 Examples
 --------
@@ -516,3 +522,84 @@ def aperture_center_equivalence(
 
     # Negate for equivalence (aperture at +k ↔ illumination at -k)
     return (-ky, -kx)
+
+
+def pixel_to_spatial(
+    pixel_shift: Union[List[float], Tuple[float, float]],
+    grid: Grid,
+) -> Tuple[float, float]:
+    """Convert pixel shift to spatial position in meters.
+
+    Parameters
+    ----------
+    pixel_shift : List[float] or Tuple[float, float]
+        Pixel shift [py, px] from center (DC).
+    grid : Grid
+        Spatial grid with dx, dy pixel sizes.
+
+    Returns
+    -------
+    Tuple[float, float]
+        Spatial position [y, x] in meters.
+    """
+    py, px = pixel_shift
+    y = py * grid.dy
+    x = px * grid.dx
+    return (y, x)
+
+
+def spatial_to_pixel(
+    spatial_pos: Union[List[float], Tuple[float, float]],
+    grid: Grid,
+) -> Tuple[float, float]:
+    """Convert spatial position (meters) to pixel shift.
+
+    Parameters
+    ----------
+    spatial_pos : List[float] or Tuple[float, float]
+        Spatial position [y, x] in meters.
+    grid : Grid
+        Spatial grid with dx, dy pixel sizes.
+
+    Returns
+    -------
+    Tuple[float, float]
+        Pixel shift [py, px] from center.
+    """
+    y, x = spatial_pos
+    py = y / grid.dy
+    px = x / grid.dx
+    return (py, px)
+
+
+def spatial_position_to_effective_k(
+    spatial_pos: Union[List[float], Tuple[float, float]],
+    source_distance: float,
+    wavelength: float,
+) -> Tuple[float, float]:
+    """Calculate effective k-space shift from spatial source position.
+
+    For a source at position (x₀, y₀, -z), the effective k-shift at
+    the object center (0, 0, 0) is approximately:
+    kx ≈ x₀ / (λ * z), ky ≈ y₀ / (λ * z)
+
+    This is the paraxial approximation for small angles.
+
+    Parameters
+    ----------
+    spatial_pos : List[float] or Tuple[float, float]
+        Source position [y, x] in meters (in object plane coordinates).
+    source_distance : float
+        Source-to-object distance (z) in meters.
+    wavelength : float
+        Optical wavelength in meters.
+
+    Returns
+    -------
+    Tuple[float, float]
+        Effective k-shift [ky, kx] in 1/meters.
+    """
+    y0, x0 = spatial_pos
+    kx = x0 / (wavelength * source_distance)
+    ky = y0 / (wavelength * source_distance)
+    return (ky, kx)

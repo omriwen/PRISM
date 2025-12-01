@@ -1,9 +1,0 @@
-{
-  "last_commit": "18237bad005531d6ba7984722cad2e835edfa907",
-  "last_update": "2024-11-27T22:17:00Z",
-  "entity_count": 59,
-  "relation_count": 60,
-  "schema_version": "1.0",
-  "update_type": "full",
-  "notes": "Initial knowledge graph generation"
-}

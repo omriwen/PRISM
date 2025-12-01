@@ -148,3 +148,45 @@ training:
     torch.save(torch.randn(16, 2), points_path)
 
     return checkpoint_dir
+
+
+@pytest.fixture
+def minimal_prism_line_args() -> list[str]:
+    """Minimal args for PRISM with line sampling enabled."""
+    return [
+        "--obj_name",
+        "europa",
+        "--n_samples",
+        "16",
+        "--sample_length",
+        "16",  # Enable line sampling
+        "--sample_diameter",
+        "32",
+        "--max_epochs",
+        "1",
+        "--n_epochs",
+        "10",
+        "--image_size",
+        "128",
+        "--debug",
+    ]
+
+
+@pytest.fixture
+def minimal_mopie_line_args() -> list[str]:
+    """Minimal args for MoPIE with line sampling enabled."""
+    return [
+        "--obj_name",
+        "europa",
+        "--n_samples",
+        "16",
+        "--sample_length",
+        "16",  # Enable line sampling
+        "--sample_diameter",
+        "32",
+        "--n_epochs",
+        "5",
+        "--image_size",
+        "128",
+        "--debug",
+    ]

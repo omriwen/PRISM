@@ -931,22 +931,15 @@ plt.show()
 
 ### Pre-Commit Requirements
 
-**IMPORTANT**: Before creating any commit, you MUST:
+**Run code quality checks** before committing:
 
-1. **Update the knowledge graph** if any Python files in `prism/` were modified:
-   - Use MCP memory tools (`mcp__memory__create_entities`, `mcp__memory__create_relations`, etc.)
-   - Scan modified files for new/changed classes, functions, and relationships
-   - Add new entities and relations to the graph
-   - This keeps the knowledge graph in sync with the codebase
+```bash
+uv run ruff check --fix prism/ tests/
+uv run ruff format prism/ tests/
+uv run mypy prism/
+```
 
-2. **Run code quality checks**:
-   ```bash
-   uv run ruff check --fix prism/ tests/
-   uv run ruff format prism/ tests/
-   uv run mypy prism/
-   ```
-
-3. **Stage all changes** including `.memory/memory.jsonl` if updated
+**Knowledge Graph Updates**: Claude automatically updates the knowledge graph during conversations when Python files in `prism/` are modified. A pre-commit hook will warn (but not block) if the graph appears out of sync. Manual updates are available via `.memory/update_knowledge_graph.py` if needed.
 
 ### Commit Messages
 
@@ -1301,9 +1294,9 @@ from prism.core import Telescope, TelescopeConfig
 from prism.core import MeasurementSystem, MeasurementSystemConfig
 from prism.core.instruments import Telescope, TelescopeConfig  # Alternative import
 
-# === Microscope with Scanning Illumination (v0.6.0) ===
+# === Microscope with Scanning Illumination (v0.6.0+) ===
 from prism.core.instruments import Microscope, MicroscopeConfig
-from prism.core.measurement_system import ScanningMode
+from prism.core.measurement_system import ScanningMode, IlluminationScanMethod  # v0.7.0
 from prism.core.optics.illumination import (
     IlluminationSource,
     IlluminationSourceType,
@@ -1428,6 +1421,35 @@ ms_config = MeasurementSystemConfig(
 )
 ms = MeasurementSystem(microscope, config=ms_config)
 ```
+
+#### Spatial Illumination (v0.7.0)
+
+For physically-shifted sources at finite distance:
+
+```python
+from prism.core.measurement_system import IlluminationScanMethod
+
+# Configure spatial illumination mode
+config = MeasurementSystemConfig(
+    scanning_mode=ScanningMode.ILLUMINATION,
+    illumination_scan_method=IlluminationScanMethod.SPATIAL,  # NEW
+    illumination_source_type="GAUSSIAN",
+    illumination_radius=5e-6,  # meters (physical units)
+    illumination_source_distance=10e-3,  # source-to-object distance
+)
+
+ms = MeasurementSystem(microscope, config=config)
+```
+
+**Key Differences from Angular Illumination:**
+
+| Aspect | Angular (ANGULAR) | Spatial (SPATIAL) |
+|--------|-------------------|-------------------|
+| Source position | At infinity (plane waves) | Finite distance from object |
+| Phase profile | Uniform tilt across field | Position-dependent curvature |
+| Use case | LED arrays, FPM | Point sources, fiber illumination |
+| illumination_radius | k-space units (1/m) | Physical units (meters) |
+| Required params | `illumination_radius` (k-space) | `illumination_radius` (physical), `illumination_source_distance` |
 
 **Key Illumination Types:**
 
@@ -1566,28 +1588,22 @@ mcp__memory__open_nodes(["Telescope", "TelescopeConfig", "MeasurementSystem"])
 mcp__memory__read_graph()
 ```
 
-### Command-Line Query Tool
+### Query Examples (MCP Tools)
 
-Use the query tool for quick lookups:
+Use MCP memory tools for quick lookups:
 
-```bash
-# Find component location
-uv run python tools/query_knowledge_graph.py "where is Telescope?"
-# 📍 Telescope
-#    Type: Class
-#    Location: prism/core/instruments/telescope.py:45
+```python
+# Find component by name
+mcp__memory__search_nodes("Telescope")
+# Returns: Telescope entity with type, location, observations
 
-# Find dependencies
-uv run python tools/query_knowledge_graph.py "what uses Telescope?"
-# 🔗 Telescope is used by:
-#    - MeasurementSystem
-#    - PRISMRunner
+# Get detailed info on multiple components
+mcp__memory__open_nodes(["Telescope", "TelescopeConfig"])
+# Returns: Full entity details including relationships
 
-# List by type
-uv run python tools/query_knowledge_graph.py "show all pipelines"
-# 📋 Found 2 pipelines:
-#    - PRISMRunner
-#    - PRISMTrainer
+# Find all entities of a type (search by type name)
+mcp__memory__search_nodes("Pipeline")
+# Returns: PRISMRunner, PRISMTrainer
 ```
 
 ### Graph Contents
@@ -1626,18 +1642,22 @@ The knowledge graph includes:
 
 ### Updating the Knowledge Graph
 
-When the codebase changes, update the knowledge graph:
+**Primary method (automatic):** Claude updates the knowledge graph automatically during conversations using MCP memory tools when Python files in `prism/` are modified.
+
+**Manual updates (optional):** If needed, you can manually update the graph:
 
 ```bash
 # Check current status
-uv run python tools/update_knowledge_graph.py --status
+uv run python .memory/update_knowledge_graph.py --status
 
 # Incremental update (only changed files)
-uv run python tools/update_knowledge_graph.py --incremental
+uv run python .memory/update_knowledge_graph.py --incremental
 
 # Full rescan
-uv run python tools/update_knowledge_graph.py --full
+uv run python .memory/update_knowledge_graph.py --full
 ```
+
+**Pre-commit hook:** A validation hook warns (but doesn't block) if the graph appears out of sync with the codebase.
 
 ---
 

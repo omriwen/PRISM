@@ -33,10 +33,11 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
-from prism.config.base import PRISMConfig
 # TODO: TelescopeAgg doesn't exist in current codebase - use MeasurementSystem instead
 # from prism.core.aggregator import TelescopeAgg  # Module doesn't exist
 from prism.models.losses import LossAggregator  # Fixed: was "LossAgg", should be "LossAggregator"
+
+
 # TODO: ProgressiveDecoder API may have changed
 # from prism.models.networks import ProgressiveDecoder
 
@@ -142,9 +143,7 @@ class CombinedLoss(nn.Module):
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Custom loss functions example for SPIDS training"
-    )
+    parser = argparse.ArgumentParser(description="Custom loss functions example for SPIDS training")
     parser.add_argument(
         "--quick",
         action="store_true",

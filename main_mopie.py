@@ -52,7 +52,7 @@ from prism.core.instruments import Telescope, TelescopeConfig
 from prism.core.measurement_system import MeasurementSystem
 from prism.core.pattern_loader import load_and_generate_pattern
 from prism.core.pattern_preview import preview_pattern
-from prism.utils.image import crop_image, generate_point_sources, load_image
+from prism.utils.image import generate_point_sources, load_image
 from prism.utils.io import save_args, save_checkpoint
 from prism.utils.logging_config import setup_logging
 from prism.utils.progress import ETACalculator, TrainingProgress

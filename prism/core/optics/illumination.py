@@ -24,6 +24,8 @@ create_phase_tilt
     Generate phase tilt for tilted plane wave illumination.
 create_illumination_field
     Create complete illumination field (envelope × phase tilt).
+create_spatial_illumination_field
+    Create illumination field from spatially-shifted finite-distance source.
 
 Examples
 --------
@@ -381,6 +383,101 @@ def create_illumination_field(
     envelope = create_illumination_envelope(grid, source, device)
 
     # Combine: field = intensity * envelope * phase_tilt
+    field = source.intensity * envelope * phase_tilt
+
+    return field.to(torch.complex64)
+
+
+def create_spatial_illumination_field(
+    grid: Grid,
+    source: IlluminationSource,
+    spatial_center: Union[List[float], Tuple[float, float]],
+    source_distance: float,
+    device: Optional[torch.device] = None,
+) -> Tensor:
+    """Create illumination field from spatially-shifted finite-distance source.
+
+    Unlike angular illumination (uniform phase tilt from source at infinity),
+    this models a source at finite distance. The illumination has:
+    1. Shifted envelope: A(x - x₀, y - y₀)
+    2. Spherical/quadratic phase from path length variation
+
+    For a point source at (x₀, y₀, -z) illuminating object at z=0:
+    Phase at (x, y) ≈ k * [(x-x₀)² + (y-y₀)²] / (2z)  (Fresnel approx)
+
+    Parameters
+    ----------
+    grid : Grid
+        Spatial grid defining the coordinate system.
+    source : IlluminationSource
+        Source configuration (type, sigma/radius, intensity).
+        Note: source.k_center is ignored; spatial_center is used instead.
+    spatial_center : List[float] or Tuple[float, float]
+        Source position [y₀, x₀] in meters (object plane coordinates).
+    source_distance : float
+        Source-to-object distance (z) in meters. Must be positive.
+    device : torch.device, optional
+        Device for computation.
+
+    Returns
+    -------
+    Tensor
+        Complex illumination field of shape (grid.ny, grid.nx).
+
+    Notes
+    -----
+    The phase model uses Fresnel (paraxial) approximation:
+    φ(x,y) = k * r² / (2z)  where r² = (x-x₀)² + (y-y₀)²
+
+    For large z (source far away), this approaches a tilted plane wave.
+    For small z (source close), the phase curvature is significant.
+    """
+    if device is None:
+        device = torch.device(grid.device)
+
+    y0, x0 = spatial_center
+    k = 2 * np.pi / grid.wl
+
+    # Get spatial coordinates
+    x = grid.x.to(device)  # Shape: (1, nx)
+    y = grid.y.to(device)  # Shape: (ny, 1)
+
+    # Shifted coordinates
+    x_shifted = x - x0
+    y_shifted = y - y0
+    r_sq = x_shifted**2 + y_shifted**2
+
+    # Create envelope (same logic as create_illumination_envelope but shifted)
+    if source.source_type == IlluminationSourceType.POINT:
+        # Point source: very narrow Gaussian (approximates delta)
+        sigma = grid.dx * 2  # 2 pixels wide
+        envelope = torch.exp(-r_sq / (2 * sigma**2))
+
+    elif source.source_type == IlluminationSourceType.GAUSSIAN:
+        if source.sigma is None:
+            raise ValueError("GAUSSIAN source requires sigma parameter")
+        # For spatial mode, sigma is in meters (physical units)
+        envelope = torch.exp(-r_sq / (2 * source.sigma**2))
+
+    elif source.source_type == IlluminationSourceType.CIRCULAR:
+        if source.radius is None:
+            raise ValueError("CIRCULAR source requires radius parameter")
+        # For spatial mode, radius is in meters
+        r = torch.sqrt(r_sq)
+        envelope = (r <= source.radius).float()
+
+    else:
+        raise ValueError(f"Unsupported source type for spatial mode: {source.source_type}")
+
+    # Normalize envelope
+    envelope = envelope / envelope.max().clamp(min=1e-10)
+
+    # Create spherical/quadratic phase (Fresnel approximation)
+    # Phase = k * r² / (2z) where z is source distance
+    phase = k * r_sq / (2 * source_distance)
+    phase_tilt = torch.exp(1j * phase)
+
+    # Combine: field = intensity * envelope * phase
     field = source.intensity * envelope * phase_tilt
 
     return field.to(torch.complex64)

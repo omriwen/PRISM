@@ -8,6 +8,7 @@
 - [Mathematical Foundations](#mathematical-foundations)
 - [Scanning Aperture Mode](#scanning-aperture-mode)
 - [Scanning Illumination Mode](#scanning-illumination-mode)
+- [Spatial Illumination Scanning](#spatial-illumination-scanning)
 - [Equivalence and Differences](#equivalence-and-differences)
 - [Partial Coherence Effects](#partial-coherence-effects)
 - [API Reference](#api-reference)
@@ -171,6 +172,57 @@ measurement = microscope.forward(
 | `GAUSSIAN` | Gaussian intensity profile | Partially coherent |
 | `CIRCULAR` | Top-hat intensity profile | Partially coherent |
 | `CUSTOM` | User-defined profile | Depends on profile |
+
+---
+
+## Spatial Illumination Scanning
+
+### Overview
+
+Spatial illumination mode (`IlluminationScanMethod.SPATIAL`) models a physically-shifted
+illumination source at finite distance from the object. Unlike angular illumination
+(tilted plane wave from source at infinity), this creates position-dependent
+illumination angles.
+
+### Physical Model
+
+For a point source at position (x₀, y₀, -z):
+- Illumination at object point (x, y) arrives at angle θ ≈ atan2(x-x₀, z)
+- Phase varies spatially: φ(x,y) ≈ k·[(x-x₀)² + (y-y₀)²] / (2z)
+
+This creates a spherical/quadratic wavefront centered at the source position.
+
+### Usage
+
+```python
+from prism.core.measurement_system import (
+    MeasurementSystem,
+    MeasurementSystemConfig,
+    ScanningMode,
+    IlluminationScanMethod,
+)
+
+config = MeasurementSystemConfig(
+    scanning_mode=ScanningMode.ILLUMINATION,
+    illumination_scan_method=IlluminationScanMethod.SPATIAL,
+    illumination_source_type="GAUSSIAN",
+    illumination_radius=5e-6,  # Physical sigma in meters
+    illumination_source_distance=10e-3,  # 10mm source distance
+)
+ms = MeasurementSystem(microscope, config=config)
+
+# Centers in pixel units (converted to meters internally)
+meas = ms.get_measurements(obj, [[0, 0], [10, 5]])
+```
+
+### Comparison with Angular Mode
+
+| Aspect | ANGULAR | SPATIAL |
+|--------|---------|---------|
+| Source location | At infinity | Finite distance |
+| Phase profile | Uniform tilt | Quadratic/spherical |
+| illumination_radius units | k-space (1/m) | Physical (m) |
+| Requires distance | No | Yes |
 
 ---
 
@@ -391,8 +443,9 @@ This reference is based on:
 ## Related Documentation
 
 - [Scanning Illumination Implementation Plan](../plans/scanning-illumination-forward-model.md)
+- [Spatial Illumination Scanning Implementation Plan](../plans/spatial-illumination-scanning.md)
 
 ---
 
-**Last Updated**: 2025-11-29
-**Status**: Initial documentation (Phase 1 implementation)
+**Last Updated**: 2025-12-01
+**Status**: Phase 5 implementation - Spatial illumination mode documented

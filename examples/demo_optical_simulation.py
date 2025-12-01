@@ -11,7 +11,6 @@ Demonstrates advanced optical simulation capabilities:
 Run with: python examples/demo_optical_simulation.py
 """
 
-import numpy as np
 import torch
 
 

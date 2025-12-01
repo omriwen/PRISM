@@ -78,6 +78,30 @@ class ScanningMode(Enum):
     ILLUMINATION = auto()
 
 
+class IlluminationScanMethod(Enum):
+    """Method for illumination scanning.
+
+    Defines how illumination scanning is performed when using
+    ScanningMode.ILLUMINATION.
+
+    Attributes
+    ----------
+    ANGULAR : auto
+        Tilted plane wave illumination (source at infinity).
+        Phase tilt exp(i·2π·(kx·x + ky·y)) applied uniformly.
+        This is the traditional FPM/LED array approach.
+
+    SPATIAL : auto
+        Spatially-shifted source (finite distance).
+        Source at position (x₀, y₀) creates position-dependent
+        illumination angles. Phase varies spatially based on
+        path length from source to each object point.
+    """
+
+    ANGULAR = auto()
+    SPATIAL = auto()
+
+
 @dataclass
 class MeasurementSystemConfig:
     """Configuration for MeasurementSystem.
@@ -104,6 +128,15 @@ class MeasurementSystemConfig:
         k-space width parameter for finite illumination sources (1/m).
         Required for GAUSSIAN (sigma) and CIRCULAR (radius) sources.
         Only used when scanning_mode is ILLUMINATION.
+    illumination_scan_method : IlluminationScanMethod
+        Method for illumination scanning. Default ANGULAR.
+        - ANGULAR: Tilted plane wave illumination (source at infinity)
+        - SPATIAL: Spatially-shifted source (finite distance)
+        Only used when scanning_mode is ILLUMINATION.
+    illumination_source_distance : float, optional
+        Source-to-object distance for SPATIAL illumination mode (meters).
+        Required when illumination_scan_method is SPATIAL.
+        Must be positive. Determines phase curvature from finite-distance source.
 
     Notes
     -----
@@ -112,6 +145,8 @@ class MeasurementSystemConfig:
     - The conversion uses the instrument's grid for proper scaling
     - For POINT sources, results are equivalent to APERTURE mode
     - For finite sources, partial coherence effects are modeled
+    - ANGULAR method uses tilted plane waves (FPM/LED array style)
+    - SPATIAL method models finite source distance with curved wavefronts
     """
 
     enable_caching: bool = True
@@ -120,6 +155,8 @@ class MeasurementSystemConfig:
     scanning_mode: ScanningMode = field(default=ScanningMode.APERTURE)
     illumination_source_type: str = "POINT"
     illumination_radius: Optional[float] = None
+    illumination_scan_method: IlluminationScanMethod = field(default=IlluminationScanMethod.ANGULAR)
+    illumination_source_distance: Optional[float] = None
 
     def validate(self) -> None:
         """Validate configuration parameters."""
@@ -142,6 +179,22 @@ class MeasurementSystemConfig:
                         f"illumination_radius is required for {self.illumination_source_type} "
                         f"source type in ILLUMINATION mode"
                     )
+
+        # Validate spatial illumination requirements
+        if (
+            self.scanning_mode == ScanningMode.ILLUMINATION
+            and self.illumination_scan_method == IlluminationScanMethod.SPATIAL
+        ):
+            if self.illumination_source_distance is None:
+                raise ValueError(
+                    "illumination_source_distance is required for SPATIAL "
+                    "illumination mode. Provide source-to-object distance in meters."
+                )
+            if self.illumination_source_distance <= 0:
+                raise ValueError(
+                    f"illumination_source_distance must be positive, "
+                    f"got {self.illumination_source_distance}"
+                )
 
 
 class MeasurementSystem:
@@ -425,6 +478,33 @@ class MeasurementSystem:
             else:
                 centers_list = centers
 
+            # For spatial illumination, compute effective k-shift for mask placement
+            if (
+                self.config.scanning_mode == ScanningMode.ILLUMINATION
+                and self.config.illumination_scan_method == IlluminationScanMethod.SPATIAL
+            ):
+                # Convert spatial positions to effective k-space shifts
+                from .optics.fourier_utils import spatial_position_to_effective_k
+
+                # Ensure source_distance is set
+                if self.config.illumination_source_distance is None:
+                    raise ValueError(
+                        "illumination_source_distance must be set for SPATIAL illumination mode"
+                    )
+
+                effective_centers = []
+                for pixel_center in centers_list:
+                    spatial_pos = self._pixel_to_spatial(pixel_center)
+                    k_shift = spatial_position_to_effective_k(
+                        spatial_pos,
+                        self.config.illumination_source_distance,
+                        self.instrument.grid.wl,
+                    )
+                    # Convert k-shift back to pixels for mask
+                    k_to_pixel_center = self._k_shift_to_pixel(k_shift)
+                    effective_centers.append(list(k_to_pixel_center))
+                centers_list = effective_centers
+
             # Determine mask radius based on mode
             mask_radius = self._get_mask_radius(radius)
 
@@ -686,10 +766,15 @@ class MeasurementSystem:
         else:
             centers_list = list(aperture_centers)
 
-        # Route based on scanning mode
+        # Route based on scanning mode and method
         if self.config.scanning_mode == ScanningMode.ILLUMINATION:
-            return self._get_measurements_illumination(field, centers_list, add_noise, **kwargs)
-        else:
+            if self.config.illumination_scan_method == IlluminationScanMethod.SPATIAL:
+                return self._get_measurements_spatial_illumination(
+                    field, centers_list, add_noise, **kwargs
+                )
+            else:  # ANGULAR (default, existing behavior)
+                return self._get_measurements_illumination(field, centers_list, add_noise, **kwargs)
+        else:  # APERTURE
             return self._get_measurements_aperture(field, centers_list, add_noise, **kwargs)
 
     def _get_measurements_aperture(
@@ -784,6 +869,79 @@ class MeasurementSystem:
             return measurements[0]
         else:
             return torch.stack(measurements)
+
+    def _get_measurements_spatial_illumination(
+        self,
+        field: Tensor,
+        centers_list: List[List[float]],
+        add_noise: bool,
+        **kwargs: Any,
+    ) -> Tensor:
+        """Generate measurements using spatial illumination scanning.
+
+        Centers are specified in pixel units and converted to physical
+        coordinates (meters) using the grid.
+
+        Parameters
+        ----------
+        field : Tensor
+            Input field at object plane.
+        centers_list : List[List[float]]
+            List of centers [py, px] in pixel units from DC.
+        add_noise : bool
+            Whether to add detector noise.
+
+        Returns
+        -------
+        Tensor
+            Measurements, shape depends on number of centers.
+        """
+        source_type = self._get_illumination_source_type()
+        source_distance = self.config.illumination_source_distance
+
+        measurements = []
+        for pixel_center in centers_list:
+            # Convert pixel center to spatial coordinates (meters)
+            spatial_center = self._pixel_to_spatial(pixel_center)
+
+            # Call instrument's spatial illumination forward
+            meas = self.instrument.forward(
+                field,
+                illumination_spatial_center=list(spatial_center),
+                illumination_source_distance=source_distance,
+                illumination_radius=self.config.illumination_radius,
+                illumination_source_type=source_type,
+                add_noise=add_noise,
+                **kwargs,
+            )
+            measurements.append(meas)
+
+        if len(measurements) == 1:
+            return measurements[0]
+        return torch.stack(measurements)
+
+    def _pixel_to_spatial(self, pixel_center: List[float]) -> Tuple[float, float]:
+        """Convert pixel center to spatial coordinates (meters)."""
+        from .optics.fourier_utils import pixel_to_spatial
+
+        return pixel_to_spatial(pixel_center, self.instrument.grid)
+
+    def _k_shift_to_pixel(self, k_shift: Tuple[float, float]) -> Tuple[float, float]:
+        """Convert k-space shift to pixel units.
+
+        Parameters
+        ----------
+        k_shift : Tuple[float, float]
+            k-space shift [ky, kx] in 1/meters.
+
+        Returns
+        -------
+        Tuple[float, float]
+            Pixel shift [py, px] from DC.
+        """
+        from .optics.fourier_utils import k_shift_to_pixel
+
+        return k_shift_to_pixel(k_shift, self.instrument.grid)
 
     def _measure_line(
         self,
@@ -1154,6 +1312,12 @@ class MeasurementSystem:
             old_meas = old_meas.unsqueeze(0)
         if new_meas.ndim == 2:
             new_meas = new_meas.unsqueeze(0)
+
+        # For line sampling: multiple centers are averaged to simulate motion blur
+        # new_meas shape: [N, C, H, W] for N centers along line → average to [C, H, W]
+        if new_meas.shape[0] != old_meas.shape[0]:
+            # Average all measurements along the line
+            new_meas = new_meas.mean(dim=0, keepdim=True)
 
         # Stack [old, new]
         result = torch.stack([old_meas, new_meas], dim=0)
