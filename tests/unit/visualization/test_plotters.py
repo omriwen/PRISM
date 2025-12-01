@@ -9,7 +9,7 @@ import torch
 from matplotlib.figure import Figure
 
 from prism.visualization import (
-    PUBLICATION,
+    DASHBOARD,
     LearningCurvesPlotter,
     ReconstructionComparisonPlotter,
     SyntheticAperturePlotter,
@@ -46,7 +46,7 @@ class TestReconstructionComparisonPlotter:
 
     def test_creates_figure(self, sample_tensors: dict[str, torch.Tensor]) -> None:
         """Test that plot() creates a figure."""
-        with ReconstructionComparisonPlotter(PUBLICATION) as plotter:
+        with ReconstructionComparisonPlotter(DASHBOARD) as plotter:
             fig = plotter.plot(
                 ground_truth=sample_tensors["ground_truth"],
                 reconstruction=sample_tensors["reconstruction"],
@@ -57,7 +57,7 @@ class TestReconstructionComparisonPlotter:
 
     def test_context_manager_cleanup(self, sample_tensors: dict[str, torch.Tensor]) -> None:
         """Test that context manager cleans up resources."""
-        plotter = ReconstructionComparisonPlotter(PUBLICATION)
+        plotter = ReconstructionComparisonPlotter(DASHBOARD)
         with plotter:
             plotter.plot(
                 ground_truth=sample_tensors["ground_truth"],
@@ -73,7 +73,7 @@ class TestReconstructionComparisonPlotter:
     ) -> None:
         """Test that save() creates an image file."""
         output_path = tmp_path / "test_reconstruction.png"  # type: ignore
-        with ReconstructionComparisonPlotter(PUBLICATION) as plotter:
+        with ReconstructionComparisonPlotter(DASHBOARD) as plotter:
             plotter.plot(
                 ground_truth=sample_tensors["ground_truth"],
                 reconstruction=sample_tensors["reconstruction"],
@@ -85,7 +85,7 @@ class TestReconstructionComparisonPlotter:
 
     def test_plot_with_difference(self, sample_tensors: dict[str, torch.Tensor]) -> None:
         """Test plot_with_difference method."""
-        with ReconstructionComparisonPlotter(PUBLICATION) as plotter:
+        with ReconstructionComparisonPlotter(DASHBOARD) as plotter:
             fig = plotter.plot_with_difference(
                 ground_truth=sample_tensors["ground_truth"],
                 reconstruction=sample_tensors["reconstruction"],
@@ -109,7 +109,7 @@ class TestLearningCurvesPlotter:
 
     def test_creates_figure(self, sample_metrics: dict[str, list[float]]) -> None:
         """Test that plot() creates a figure."""
-        with LearningCurvesPlotter(PUBLICATION) as plotter:
+        with LearningCurvesPlotter(DASHBOARD) as plotter:
             fig = plotter.plot(
                 losses=sample_metrics["losses"],
                 ssims=sample_metrics["ssims"],
@@ -119,13 +119,13 @@ class TestLearningCurvesPlotter:
 
     def test_empty_data_handled(self) -> None:
         """Test that empty data is handled gracefully."""
-        with LearningCurvesPlotter(PUBLICATION) as plotter:
+        with LearningCurvesPlotter(DASHBOARD) as plotter:
             fig = plotter.plot(losses=[], ssims=[], psnrs=[])
             assert isinstance(fig, Figure)
 
     def test_plot_combined(self, sample_metrics: dict[str, list[float]]) -> None:
         """Test plot_combined method."""
-        with LearningCurvesPlotter(PUBLICATION) as plotter:
+        with LearningCurvesPlotter(DASHBOARD) as plotter:
             fig = plotter.plot_combined(
                 losses=sample_metrics["losses"],
                 ssims=sample_metrics["ssims"],
@@ -140,7 +140,7 @@ class TestSyntheticAperturePlotter:
     def test_creates_figure(self, mock_telescope: MagicMock) -> None:
         """Test that plot() creates a figure."""
         tensor = torch.randn(1, 1, 128, 128)
-        with SyntheticAperturePlotter(PUBLICATION) as plotter:
+        with SyntheticAperturePlotter(DASHBOARD) as plotter:
             fig = plotter.plot(
                 tensor=tensor,
                 telescope_agg=mock_telescope,
@@ -170,17 +170,17 @@ class TestTrainingVisualizer:
 
     def test_initializes_correctly(self) -> None:
         """Test that TrainingVisualizer initializes with config."""
-        with TrainingVisualizer(PUBLICATION) as viz:
-            assert viz.config == PUBLICATION
+        with TrainingVisualizer(DASHBOARD) as viz:
+            assert viz.config == DASHBOARD
             assert viz.update_interval == 0.1  # default
 
     def test_custom_update_interval(self) -> None:
         """Test custom update interval."""
-        with TrainingVisualizer(PUBLICATION, update_interval=0.5) as viz:
+        with TrainingVisualizer(DASHBOARD, update_interval=0.5) as viz:
             assert viz.update_interval == 0.5
 
     def test_context_manager(self) -> None:
         """Test context manager behavior."""
-        with TrainingVisualizer(PUBLICATION) as viz:
+        with TrainingVisualizer(DASHBOARD) as viz:
             assert viz is not None
         # Should not raise after exit
