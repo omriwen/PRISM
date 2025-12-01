@@ -12,6 +12,7 @@ import torch
 from prism.core.trainers import PRISMTrainer, create_scheduler
 from prism.models.networks import ProgressiveDecoder
 
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -92,9 +93,7 @@ def cosine_scheduler(
     optimizer: torch.optim.Adam,
 ) -> torch.optim.lr_scheduler.CosineAnnealingWarmRestarts:
     """CosineAnnealingWarmRestarts scheduler."""
-    return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer, T_0=10, T_mult=2
-    )
+    return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2)
 
 
 @pytest.fixture
@@ -231,11 +230,14 @@ def sample_tensors(device: torch.device) -> dict[str, torch.Tensor]:
         "image_gt": torch.rand(1, 1, 64, 64, device=device),
         # Line endpoints shape: (n_lines, 2, 2) where each line is [[y1,x1], [y2,x2]]
         # For point mode, these become single points when samples_per_line_meas=0
-        "sample_centers": torch.tensor([
-            [[0.0, 0.0], [0.0, 0.0]],  # Point at origin (same start/end)
-            [[0.1, 0.1], [0.1, 0.1]],  # Point at (0.1, 0.1)
-            [[0.2, 0.0], [0.2, 0.0]],  # Point at (0.2, 0.0)
-        ], device=device),
+        "sample_centers": torch.tensor(
+            [
+                [[0.0, 0.0], [0.0, 0.0]],  # Point at origin (same start/end)
+                [[0.1, 0.1], [0.1, 0.1]],  # Point at (0.1, 0.1)
+                [[0.2, 0.0], [0.2, 0.0]],  # Point at (0.2, 0.0)
+            ],
+            device=device,
+        ),
     }
 
 
@@ -274,12 +276,8 @@ class TestCreateScheduler:
 
     def test_create_cosine_scheduler(self, optimizer: torch.optim.Adam) -> None:
         """Test creating CosineAnnealingWarmRestarts scheduler."""
-        scheduler = create_scheduler(
-            optimizer, scheduler_type="cosine_warm_restarts"
-        )
-        assert isinstance(
-            scheduler, torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
-        )
+        scheduler = create_scheduler(optimizer, scheduler_type="cosine_warm_restarts")
+        assert isinstance(scheduler, torch.optim.lr_scheduler.CosineAnnealingWarmRestarts)
 
     def test_cosine_scheduler_custom_params(self, optimizer: torch.optim.Adam) -> None:
         """Test cosine scheduler with custom T_0, T_mult, eta_min."""
@@ -378,9 +376,7 @@ class TestPRISMTrainerInit:
         trainer = PRISMTrainer(**trainer_setup)
         assert trainer.scheduler is trainer_setup["scheduler"]
 
-    def test_current_reconstruction_initialized_none(
-        self, trainer_setup: dict
-    ) -> None:
+    def test_current_reconstruction_initialized_none(self, trainer_setup: dict) -> None:
         """Test current_reconstruction is initialized as None."""
         trainer = PRISMTrainer(**trainer_setup)
         assert trainer.current_reconstruction is None
@@ -400,9 +396,7 @@ class TestPRISMTrainerInit:
         trainer = PRISMTrainer(**trainer_setup)
         assert trainer.lr_history == []
 
-    def test_convergence_tracking_initialized_empty(
-        self, trainer_setup: dict
-    ) -> None:
+    def test_convergence_tracking_initialized_empty(self, trainer_setup: dict) -> None:
         """Test convergence tracking lists are initialized empty."""
         trainer = PRISMTrainer(**trainer_setup)
         assert trainer.epochs_per_sample == []
@@ -450,9 +444,7 @@ class TestRunInitialization:
         # Figure is None when not provided
         assert figure is None
 
-    def test_reconstruction_not_nan(
-        self, initialized_trainer: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_reconstruction_not_nan(self, initialized_trainer: tuple[PRISMTrainer, dict]) -> None:
         """Test reconstruction has no NaN values."""
         trainer, tensors = initialized_trainer
         result, _ = trainer.run_initialization(
@@ -475,9 +467,7 @@ class TestRunInitialization:
         assert trainer.current_reconstruction is not None
         assert torch.allclose(result, trainer.current_reconstruction)
 
-    def test_early_exit_on_convergence(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_early_exit_on_convergence(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test training exits early when loss below threshold."""
         # Set very high threshold to trigger early exit
         trainer_setup["args"].loss_th = 1000.0
@@ -526,9 +516,7 @@ class TestRunInitialization:
         # Should not raise and should produce valid output
         assert not torch.isnan(result).any()
 
-    def test_max_epochs_limit_respected(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_max_epochs_limit_respected(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that max_epochs_init limit is respected."""
         trainer_setup["args"].loss_th = 1e-10  # Very low threshold (won't converge)
         trainer_setup["args"].max_epochs_init = 2
@@ -543,9 +531,7 @@ class TestRunInitialization:
         )
         assert result is not None
 
-    def test_scheduler_step_called(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_scheduler_step_called(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that scheduler.step is called during training."""
         from unittest.mock import Mock
 
@@ -564,9 +550,7 @@ class TestRunInitialization:
         # Scheduler step should have been called at least once
         assert mock_scheduler.step.called
 
-    def test_optimizer_zero_grad_called(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_optimizer_zero_grad_called(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that optimizer.zero_grad is called at end of initialization."""
         trainer = PRISMTrainer(**trainer_setup, use_amp=False)
 
@@ -589,9 +573,7 @@ class TestRunInitialization:
         # zero_grad should have been called multiple times
         assert call_count[0] > 0
 
-    def test_figure_parameter_accepted(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_figure_parameter_accepted(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that figure parameter is accepted (returned as-is when None)."""
         trainer = PRISMTrainer(**trainer_setup, use_amp=False)
 
@@ -623,9 +605,7 @@ class TestRunInitialization:
         # Model output should be (1, 1, 64, 64) based on input_size=64
         assert result.shape == (1, 1, 64, 64)
 
-    def test_initialization_target_meas(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_initialization_target_meas(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test initialization with measurement target."""
         trainer_setup["args"].initialization_target = "meas"
         trainer = PRISMTrainer(**trainer_setup, use_amp=False)
@@ -636,6 +616,7 @@ class TestRunInitialization:
         )
         assert result is not None
         assert not torch.isnan(result).any()
+
 
 # =============================================================================
 # TEST: PRISMTrainer.run_progressive_training
@@ -652,14 +633,10 @@ class TestRunProgressiveTraining:
         """Trainer with initial reconstruction set."""
         trainer = PRISMTrainer(**trainer_setup, use_amp=False)
         # Set initial reconstruction (normally done by run_initialization)
-        trainer.current_reconstruction = torch.rand(
-            1, 1, 64, 64, device=trainer.device
-        )
+        trainer.current_reconstruction = torch.rand(1, 1, 64, 64, device=trainer.device)
         return trainer, sample_tensors
 
-    def test_single_sample_returns_early(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_single_sample_returns_early(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that n_samples <= 1 returns without training."""
         trainer_setup["args"].n_samples = 1
         trainer = PRISMTrainer(**trainer_setup, use_amp=False)
@@ -675,9 +652,7 @@ class TestRunProgressiveTraining:
         assert isinstance(result, dict)
         assert "final_reconstruction" in result
 
-    def test_returns_results_dict(
-        self, training_ready_trainer: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_returns_results_dict(self, training_ready_trainer: tuple[PRISMTrainer, dict]) -> None:
         """Test that method returns a results dictionary."""
         trainer, tensors = training_ready_trainer
         trainer.args.n_samples = 3
@@ -789,9 +764,7 @@ class TestRunProgressiveTraining:
         assert result is not None
         assert "final_reconstruction" in result
 
-    def test_convergence_detection(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_convergence_detection(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that convergence is detected when loss is low."""
         trainer_setup["args"].loss_th = 1000.0  # Very high threshold
         trainer_setup["args"].n_samples = 3
@@ -812,9 +785,7 @@ class TestRunProgressiveTraining:
 
         assert result is not None
 
-    def test_sample_times_tracked(
-        self, training_ready_trainer: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_sample_times_tracked(self, training_ready_trainer: tuple[PRISMTrainer, dict]) -> None:
         """Test that sample processing times are tracked."""
         trainer, tensors = training_ready_trainer
         trainer.args.n_samples = 3
@@ -833,9 +804,7 @@ class TestRunProgressiveTraining:
         assert len(trainer.sample_times) >= 1
         assert all(t > 0 for t in trainer.sample_times)
 
-    def test_lr_history_tracked(
-        self, training_ready_trainer: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_lr_history_tracked(self, training_ready_trainer: tuple[PRISMTrainer, dict]) -> None:
         """Test that learning rate history is tracked."""
         trainer, tensors = training_ready_trainer
         trainer.args.n_samples = 3
@@ -877,9 +846,7 @@ class TestRunProgressiveTraining:
         assert len(trainer.epochs_per_sample) >= 1
         assert len(trainer.tiers_per_sample) >= 1
 
-    def test_failed_samples_tracked(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_failed_samples_tracked(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test that failed samples are tracked when they don't converge."""
         trainer_setup["args"].loss_th = 1e-15  # Impossibly low threshold
         trainer_setup["args"].n_samples = 3
@@ -925,9 +892,7 @@ class TestRunProgressiveTraining:
         # The optimizer reference changes during progressive training
         assert trainer.optimizer is not initial_optimizer
 
-    def test_point_measurement_mode(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_point_measurement_mode(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test training with point measurement mode."""
         trainer_setup["args"].sample_length = 0  # Point mode
         trainer_setup["args"].n_samples = 3
@@ -947,9 +912,7 @@ class TestRunProgressiveTraining:
 
         assert result is not None
 
-    def test_wall_time_tracking(
-        self, training_ready_trainer: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_wall_time_tracking(self, training_ready_trainer: tuple[PRISMTrainer, dict]) -> None:
         """Test that wall time is tracked in results."""
         trainer, tensors = training_ready_trainer
         trainer.args.n_samples = 3
@@ -1058,18 +1021,14 @@ class TestLogSampleMetrics:
         trainer.lr_history = [1e-3, 1e-3, 1e-3]
         return trainer, sample_tensors
 
-    def test_logs_scalar_metrics(
-        self, trainer_with_metrics: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_logs_scalar_metrics(self, trainer_with_metrics: tuple[PRISMTrainer, dict]) -> None:
         """Test scalar metrics are logged to TensorBoard."""
         trainer, tensors = trainer_with_metrics
         mock_writer = Mock()
         trainer.writer = mock_writer
 
         center = tensors["sample_centers"][0]
-        trainer._log_sample_metrics(
-            center_idx=1, loss_old=0.4, loss_new=0.3, center=center
-        )
+        trainer._log_sample_metrics(center_idx=1, loss_old=0.4, loss_new=0.3, center=center)
 
         # Verify add_scalar was called for each metric
         assert mock_writer.add_scalar.called
@@ -1086,9 +1045,7 @@ class TestLogSampleMetrics:
 
         center = tensors["sample_centers"][0]
         # Log for center_idx=0 (first sample)
-        trainer._log_sample_metrics(
-            center_idx=0, loss_old=0.5, loss_new=0.4, center=center
-        )
+        trainer._log_sample_metrics(center_idx=0, loss_old=0.5, loss_new=0.4, center=center)
 
         # Should have logged hparams
         mock_writer.add_hparams.assert_called_once()
@@ -1109,16 +1066,12 @@ class TestLogSampleMetrics:
 
         center = tensors["sample_centers"][0]
         # Log for center_idx=1 (not first sample)
-        trainer._log_sample_metrics(
-            center_idx=1, loss_old=0.4, loss_new=0.3, center=center
-        )
+        trainer._log_sample_metrics(center_idx=1, loss_old=0.4, loss_new=0.3, center=center)
 
         # Should NOT have logged hparams
         mock_writer.add_hparams.assert_not_called()
 
-    def test_logs_hparams_with_snr(
-        self, trainer_with_metrics: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_logs_hparams_with_snr(self, trainer_with_metrics: tuple[PRISMTrainer, dict]) -> None:
         """Test SNR included in hparams when set."""
         trainer, tensors = trainer_with_metrics
         trainer.args.snr = 20.0  # Set SNR
@@ -1126,9 +1079,7 @@ class TestLogSampleMetrics:
         trainer.writer = mock_writer
 
         center = tensors["sample_centers"][0]
-        trainer._log_sample_metrics(
-            center_idx=0, loss_old=0.5, loss_new=0.4, center=center
-        )
+        trainer._log_sample_metrics(center_idx=0, loss_old=0.5, loss_new=0.4, center=center)
 
         # Check SNR in hparam_dict
         call_args = mock_writer.add_hparams.call_args
@@ -1136,31 +1087,23 @@ class TestLogSampleMetrics:
         assert "snr" in hparam_dict
         assert hparam_dict["snr"] == 20.0
 
-    def test_handles_none_writer(
-        self, trainer_with_metrics: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_handles_none_writer(self, trainer_with_metrics: tuple[PRISMTrainer, dict]) -> None:
         """Test gracefully handles writer=None."""
         trainer, tensors = trainer_with_metrics
         trainer.writer = None
 
         center = tensors["sample_centers"][0]
         # Should not raise
-        trainer._log_sample_metrics(
-            center_idx=1, loss_old=0.4, loss_new=0.3, center=center
-        )
+        trainer._log_sample_metrics(center_idx=1, loss_old=0.4, loss_new=0.3, center=center)
 
-    def test_logs_image(
-        self, trainer_with_metrics: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_logs_image(self, trainer_with_metrics: tuple[PRISMTrainer, dict]) -> None:
         """Test reconstruction image is logged."""
         trainer, tensors = trainer_with_metrics
         mock_writer = Mock()
         trainer.writer = mock_writer
 
         center = tensors["sample_centers"][0]
-        trainer._log_sample_metrics(
-            center_idx=1, loss_old=0.4, loss_new=0.3, center=center
-        )
+        trainer._log_sample_metrics(center_idx=1, loss_old=0.4, loss_new=0.3, center=center)
 
         # Should have logged image
         mock_writer.add_image.assert_called_once()
@@ -1168,9 +1111,7 @@ class TestLogSampleMetrics:
         call_args = mock_writer.add_image.call_args
         assert call_args[0][0] == "Reconstructed Image"
 
-    def test_logs_with_snr(
-        self, trainer_with_metrics: tuple[PRISMTrainer, dict]
-    ) -> None:
+    def test_logs_with_snr(self, trainer_with_metrics: tuple[PRISMTrainer, dict]) -> None:
         """Test logging works when SNR is set."""
         trainer, tensors = trainer_with_metrics
         trainer.args.snr = 15.0
@@ -1179,9 +1120,7 @@ class TestLogSampleMetrics:
 
         center = tensors["sample_centers"][0]
         # Should not raise
-        trainer._log_sample_metrics(
-            center_idx=1, loss_old=0.4, loss_new=0.3, center=center
-        )
+        trainer._log_sample_metrics(center_idx=1, loss_old=0.4, loss_new=0.3, center=center)
         assert mock_writer.add_scalar.called
 
 
@@ -1258,9 +1197,7 @@ class TestSaveCheckpoint:
         checkpoint_path = tmp_path / "checkpoint.pt"
         assert checkpoint_path.exists()
 
-    def test_handles_none_log_dir(
-        self, trainer_setup: dict, sample_tensors: dict
-    ) -> None:
+    def test_handles_none_log_dir(self, trainer_setup: dict, sample_tensors: dict) -> None:
         """Test checkpoint not saved when log_dir is None."""
         trainer = PRISMTrainer(**trainer_setup, use_amp=False, log_dir=None)
         trainer.current_reconstruction = sample_tensors["measurement"]

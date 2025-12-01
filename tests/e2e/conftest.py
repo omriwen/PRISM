@@ -1,17 +1,20 @@
 """Shared fixtures for end-to-end tests."""
+
 from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import matplotlib
+
+
 matplotlib.use("Agg")  # Must be before pyplot import
 
 import pytest
 import torch
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -25,6 +28,7 @@ EXAMPLES_DIR = PROJECT_ROOT / "examples"
 def cleanup_matplotlib():
     """Close all matplotlib figures after each test."""
     import matplotlib.pyplot as plt
+
     yield
     plt.close("all")
 
@@ -44,6 +48,7 @@ def examples_dir() -> Path:
 @pytest.fixture
 def run_subprocess() -> Callable[..., subprocess.CompletedProcess]:
     """Return a helper function to run subprocesses with proper environment."""
+
     def _run(
         cmd: list[str],
         timeout: int = 120,
@@ -60,6 +65,7 @@ def run_subprocess() -> Callable[..., subprocess.CompletedProcess]:
             env=env,
             check=check,
         )
+
     return _run
 
 
@@ -67,12 +73,18 @@ def run_subprocess() -> Callable[..., subprocess.CompletedProcess]:
 def minimal_prism_args() -> list[str]:
     """Return minimal arguments for fast PRISM execution."""
     return [
-        "--obj_name", "europa",
-        "--n_samples", "16",
-        "--sample_diameter", "32",
-        "--max_epochs", "1",
-        "--n_epochs", "10",
-        "--image_size", "128",
+        "--obj_name",
+        "europa",
+        "--n_samples",
+        "16",
+        "--sample_diameter",
+        "32",
+        "--max_epochs",
+        "1",
+        "--n_epochs",
+        "10",
+        "--image_size",
+        "128",
         "--debug",
     ]
 
@@ -81,11 +93,16 @@ def minimal_prism_args() -> list[str]:
 def minimal_mopie_args() -> list[str]:
     """Return minimal arguments for fast MoPIE execution."""
     return [
-        "--obj_name", "europa",
-        "--n_samples", "16",
-        "--sample_diameter", "32",
-        "--n_epochs", "5",
-        "--image_size", "128",
+        "--obj_name",
+        "europa",
+        "--n_samples",
+        "16",
+        "--sample_diameter",
+        "32",
+        "--n_epochs",
+        "5",
+        "--image_size",
+        "128",
         "--debug",
     ]
 

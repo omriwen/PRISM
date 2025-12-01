@@ -157,7 +157,7 @@ class Telescope(FourFSystem):
         will be on the correct device.
         """
         # Call parent _apply first
-        result = super()._apply(fn)
+        result = super()._apply(fn)  # type: ignore[misc]
 
         # Detect device change by applying fn to a dummy tensor
         dummy = torch.zeros(1)
@@ -170,7 +170,7 @@ class Telescope(FourFSystem):
             self._x = None
             self._y = None
 
-        return result
+        return result  # type: ignore[no-any-return]
 
     @staticmethod
     def _create_noise_model_from_config(config: TelescopeConfig) -> Optional[Any]:

@@ -1,4 +1,5 @@
 """End-to-end tests for Jupyter notebook execution."""
+
 from __future__ import annotations
 
 import subprocess
@@ -6,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 
 # Note: Notebook tests were previously skipped due to outdated API usage.
 # As of 2025-12-01, all notebooks have been updated to use the current API.
@@ -71,23 +73,27 @@ def execute_notebook(notebook_path: Path, timeout: int = 300) -> subprocess.Comp
 
     # Use a wrapper script to apply nest_asyncio before running nbconvert
     # This fixes "RuntimeError: no running event loop" in pytest environment
-    wrapper_code = '''
+    wrapper_code = """
 import nest_asyncio
 nest_asyncio.apply()
 
 import sys
 from nbconvert.nbconvertapp import main
 sys.exit(main())
-'''
+"""
     with tempfile.TemporaryDirectory() as tmpdir:
         return subprocess.run(
             [
-                sys.executable, "-c", wrapper_code,
-                "--to", "notebook",
+                sys.executable,
+                "-c",
+                wrapper_code,
+                "--to",
+                "notebook",
                 "--execute",
                 f"--ExecutePreprocessor.timeout={timeout}",
                 "--ExecutePreprocessor.kernel_name=python3",
-                "--output-dir", tmpdir,
+                "--output-dir",
+                tmpdir,
                 str(notebook_path),
             ],
             capture_output=True,

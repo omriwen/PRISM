@@ -1,4 +1,5 @@
 """End-to-end tests for pattern generator examples."""
+
 from __future__ import annotations
 
 import sys
@@ -7,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import torch
+
 
 PATTERNS_DIR = Path(__file__).parent.parent.parent / "examples" / "patterns"
 
@@ -17,6 +19,7 @@ sys.path.insert(0, str(PATTERNS_DIR))
 @dataclass
 class PatternConfig:
     """Mock config for pattern generators."""
+
     n_samples: int = 100
     roi_diameter: float = 100.0
 
@@ -30,12 +33,15 @@ class TestPatternGenerators:
         return PatternConfig(n_samples=100, roi_diameter=100.0)
 
     @pytest.mark.e2e
-    @pytest.mark.parametrize("pattern_module", [
-        "concentric_circles",
-        "continuous_spiral",
-        "jittered_grid",
-        "logarithmic_spiral",
-    ])
+    @pytest.mark.parametrize(
+        "pattern_module",
+        [
+            "concentric_circles",
+            "continuous_spiral",
+            "jittered_grid",
+            "logarithmic_spiral",
+        ],
+    )
     def test_pattern_generates_valid_points(self, pattern_module, config):
         """Test that pattern generator produces valid sample points."""
         try:
@@ -49,9 +55,7 @@ class TestPatternGenerators:
         points = module.generate_pattern(config)
 
         # Validate output is a tensor
-        assert isinstance(points, torch.Tensor), (
-            f"Expected torch.Tensor, got {type(points)}"
-        )
+        assert isinstance(points, torch.Tensor), f"Expected torch.Tensor, got {type(points)}"
 
         # Validate output shape
         assert points.shape[0] == config.n_samples, (
@@ -67,7 +71,7 @@ class TestPatternGenerators:
         else:
             points_2d = points
 
-        distances = torch.sqrt(points_2d[..., 0]**2 + points_2d[..., 1]**2)
+        distances = torch.sqrt(points_2d[..., 0] ** 2 + points_2d[..., 1] ** 2)
         assert distances.max() <= max_radius * 1.1, (
             f"Points exceed roi_diameter: max distance = {distances.max():.2f}, "
             f"allowed = {max_radius:.2f}"
@@ -94,7 +98,7 @@ class TestPatternGenerators:
             points_2d = points
 
         # Calculate distances from origin
-        distances = torch.sqrt(points_2d[:, 0]**2 + points_2d[:, 1]**2)
+        distances = torch.sqrt(points_2d[:, 0] ** 2 + points_2d[:, 1] ** 2)
 
         # Should have multiple distinct radii (concentric circles)
         # Round to 2 decimal places to group by circle
@@ -125,7 +129,7 @@ class TestPatternGenerators:
                 points_2d = points
 
             # Calculate distances from origin
-            distances = torch.sqrt(points_2d[:, 0]**2 + points_2d[:, 1]**2)
+            distances = torch.sqrt(points_2d[:, 0] ** 2 + points_2d[:, 1] ** 2)
 
             # For spiral patterns, distances should generally increase
             # Check that at least 80% of points follow increasing trend
@@ -164,7 +168,7 @@ class TestPatternGenerators:
             diffs = points_2d - points_2d[i]
             distances = torch.sqrt((diffs**2).sum(dim=-1))
             # Exclude self (distance = 0)
-            distances[i] = float('inf')
+            distances[i] = float("inf")
             min_distances.append(distances.min().item())
 
         avg_min_distance = sum(min_distances) / len(min_distances)

@@ -1,9 +1,6 @@
 """End-to-end tests for PRISM CLI tools."""
-from __future__ import annotations
 
-import subprocess
-import sys
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 
@@ -25,11 +22,18 @@ class TestPrismPatterns:
     def test_patterns_show(self, run_subprocess, tmp_path):
         """Test prism-patterns show command."""
         output_file = tmp_path / "pattern.png"
-        result = run_subprocess([
-            "prism-patterns", "show", "fermat",
-            "--n-samples", "50",
-            "--output", str(output_file),
-        ], timeout=30)
+        result = run_subprocess(
+            [
+                "prism-patterns",
+                "show",
+                "fermat",
+                "--n-samples",
+                "50",
+                "--output",
+                str(output_file),
+            ],
+            timeout=30,
+        )
 
         assert result.returncode == 0
         assert output_file.exists()
@@ -37,10 +41,16 @@ class TestPrismPatterns:
     @pytest.mark.e2e
     def test_patterns_stats(self, run_subprocess):
         """Test prism-patterns stats command."""
-        result = run_subprocess([
-            "prism-patterns", "stats", "fermat",
-            "--n-samples", "50",
-        ], timeout=30)
+        result = run_subprocess(
+            [
+                "prism-patterns",
+                "stats",
+                "fermat",
+                "--n-samples",
+                "50",
+            ],
+            timeout=30,
+        )
 
         assert result.returncode == 0
 
@@ -60,9 +70,13 @@ class TestPrismInspect:
     def test_inspect_checkpoint(self, run_subprocess, mock_checkpoint):
         """Test prism-inspect on mock checkpoint."""
         checkpoint_path = mock_checkpoint / "checkpoint.pt"
-        result = run_subprocess([
-            "prism-inspect", str(checkpoint_path),
-        ], timeout=30)
+        result = run_subprocess(
+            [
+                "prism-inspect",
+                str(checkpoint_path),
+            ],
+            timeout=30,
+        )
 
         # Should either succeed or fail gracefully
         assert result.returncode in (0, 1)
@@ -93,11 +107,17 @@ class TestPrismReport:
     def test_report_html_generation(self, run_subprocess, mock_checkpoint, tmp_path):
         """Test prism-report generates HTML."""
         output_file = tmp_path / "report.html"
-        result = run_subprocess([
-            "prism-report", str(mock_checkpoint),
-            "--format", "html",
-            "--output", str(output_file),
-        ], timeout=60)
+        result = run_subprocess(
+            [
+                "prism-report",
+                str(mock_checkpoint),
+                "--format",
+                "html",
+                "--output",
+                str(output_file),
+            ],
+            timeout=60,
+        )
 
         # May fail if template issues, but should not crash
         if result.returncode == 0:

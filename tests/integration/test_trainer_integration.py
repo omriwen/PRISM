@@ -22,8 +22,11 @@ import torch
 from prism.core.trainers import PRISMTrainer, create_scheduler
 from prism.models.networks import ProgressiveDecoder
 
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from prism.core.measurement_system import MeasurementSystem
 
 
 # =============================================================================
@@ -401,9 +404,7 @@ class TestTrainerCheckpointing:
     ) -> None:
         """Test training with checkpoint saving."""
         integration_setup["args"].save_data = True
-        trainer = PRISMTrainer(
-            **integration_setup, use_amp=False, log_dir=str(tmp_path)
-        )
+        trainer = PRISMTrainer(**integration_setup, use_amp=False, log_dir=str(tmp_path))
 
         # Run initialization
         trainer.run_initialization(
@@ -440,9 +441,7 @@ class TestTrainerCheckpointing:
     ) -> None:
         """Test that checkpoint can be loaded on CPU regardless of source device."""
         integration_setup["args"].save_data = True
-        trainer = PRISMTrainer(
-            **integration_setup, use_amp=False, log_dir=str(tmp_path)
-        )
+        trainer = PRISMTrainer(**integration_setup, use_amp=False, log_dir=str(tmp_path))
 
         # Run minimal training to generate checkpoint
         trainer.run_initialization(
@@ -662,9 +661,7 @@ class TestTrainerCUDA:
         device = torch.device("cuda")
 
         # Create model on CUDA
-        model = ProgressiveDecoder(input_size=64, latent_channels=32, use_amp=True).to(
-            device
-        )
+        model = ProgressiveDecoder(input_size=64, latent_channels=32, use_amp=True).to(device)
 
         # Create mock measurement system for CUDA
         measurement_system = create_mock_measurement_system(device)
@@ -734,7 +731,7 @@ class TestSchedulerIntegration:
             image_gt=sample_data["image_gt"],
         )
 
-        initial_lr = trainer.optimizer.param_groups[0]["lr"]
+        _ = trainer.optimizer.param_groups[0]["lr"]  # noqa: F841 - verify lr exists
 
         with disable_training_progress():
             trainer.run_progressive_training(
@@ -748,7 +745,8 @@ class TestSchedulerIntegration:
         assert len(trainer.lr_history) > 0
 
     def test_cosine_scheduler_integration(
-        self, small_model: ProgressiveDecoder,
+        self,
+        small_model: ProgressiveDecoder,
         measurement_system: MeasurementSystem,
         sample_data: dict[str, torch.Tensor],
         device: torch.device,

@@ -1,9 +1,8 @@
 """End-to-end tests for main_mopie.py MoPIE entry point."""
+
 from __future__ import annotations
 
-import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -17,10 +16,13 @@ class TestMainMoPIEExecution:
     ):
         """Test that main_mopie.py completes with minimal parameters."""
         cmd = [
-            sys.executable, str(project_root / "main_mopie.py"),
+            sys.executable,
+            str(project_root / "main_mopie.py"),
             *minimal_mopie_args,
-            "--name", f"e2e_mopie_test_{tmp_path.name}",
-            "--log_dir", str(tmp_path),
+            "--name",
+            f"e2e_mopie_test_{tmp_path.name}",
+            "--log_dir",
+            str(tmp_path),
         ]
         result = run_subprocess(cmd, timeout=180)
 
@@ -34,10 +36,13 @@ class TestMainMoPIEExecution:
         """Test that main_mopie.py produces expected output files."""
         run_name = f"e2e_mopie_output_{tmp_path.name}"
         cmd = [
-            sys.executable, str(project_root / "main_mopie.py"),
+            sys.executable,
+            str(project_root / "main_mopie.py"),
             *minimal_mopie_args,
-            "--name", run_name,
-            "--log_dir", str(tmp_path),
+            "--name",
+            run_name,
+            "--log_dir",
+            str(tmp_path),
         ]
         cmd = [arg for arg in cmd if arg != "--debug"]
 

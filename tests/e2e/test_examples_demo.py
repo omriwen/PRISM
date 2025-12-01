@@ -1,11 +1,12 @@
 """End-to-end tests for demo scripts."""
+
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
 
 EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 

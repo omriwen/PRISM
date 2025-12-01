@@ -155,7 +155,9 @@ class TestInferenceOptimizationWithGradients:
         # This SHOULD raise RuntimeError because parameters are frozen (requires_grad=False)
         loss = output.sum()
 
-        with pytest.raises(RuntimeError, match="does not require grad|leaf Variable that requires grad"):
+        with pytest.raises(
+            RuntimeError, match="does not require grad|leaf Variable that requires grad"
+        ):
             loss.backward()
 
     def test_training_disabled_after_optimization(self, simple_network):
@@ -163,12 +165,14 @@ class TestInferenceOptimizationWithGradients:
         simple_network.prepare_for_inference()
 
         # Try to train - backward should fail because parameters are frozen
-        optimizer = torch.optim.Adam(simple_network.parameters(), lr=0.001)
+        _ = torch.optim.Adam(simple_network.parameters(), lr=0.001)  # noqa: F841
         output = simple_network()  # No input!
         loss = output.sum()
 
         # This should raise because parameters don't require gradients
-        with pytest.raises(RuntimeError, match="does not require grad|leaf Variable that requires grad"):
+        with pytest.raises(
+            RuntimeError, match="does not require grad|leaf Variable that requires grad"
+        ):
             loss.backward()
 
 
