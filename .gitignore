@@ -117,15 +117,15 @@ test_output_*
 logs/
 *.out
 
-# AI Assistant/Editor config (most tracked for sharing - useful for developers)
+# AI Assistant/Editor config
 .cursorrules
 .claude/settings.local.json
 .codex/
+.cursor/
+.gemini/
 
 # MCP server configurations (contain machine-specific absolute paths)
 .mcp.json
-.cursor/mcp.json
-.gemini/settings.json
 
 # Project-specific files
 Ideas_and_ToDos.md
