@@ -103,10 +103,10 @@ class TestGaussianWindow:
 class TestGaussianFilter:
     """Test Gaussian filtering function."""
 
-    def test_filter_preserves_shape(self):
+    def test_filter_preserves_shape(self, device):
         """Test that filtering preserves input shape."""
-        img = torch.rand(1, 1, 128, 128)
-        window = _create_gaussian_window(11, 1.5, channels=1)
+        img = torch.rand(1, 1, 128, 128, device=device)
+        window = _create_gaussian_window(11, 1.5, channels=1).to(device)
         filtered = _gaussian_filter(img, window)
 
         assert filtered.shape == img.shape, f"Shape mismatch: {filtered.shape} vs {img.shape}"
@@ -120,11 +120,11 @@ class TestGaussianFilter:
 
         assert filtered.shape == img.shape, f"Shape mismatch: {filtered.shape} vs {img.shape}"
 
-    def test_filter_constant_image(self):
+    def test_filter_constant_image(self, device):
         """Test that constant images remain approximately constant after filtering."""
         constant_value = 0.5
-        img = torch.full((1, 1, 64, 64), constant_value)
-        window = _create_gaussian_window(11, 1.5, channels=1)
+        img = torch.full((1, 1, 64, 64), constant_value, device=device)
+        window = _create_gaussian_window(11, 1.5, channels=1).to(device)
         filtered = _gaussian_filter(img, window)
 
         # Filtered constant image should be approximately constant in the interior
@@ -134,11 +134,11 @@ class TestGaussianFilter:
             "Constant image should remain constant in interior after filtering"
         )
 
-    def test_filter_smoothing(self):
+    def test_filter_smoothing(self, device):
         """Test that filtering reduces variance (smoothing property)."""
         torch.manual_seed(42)
-        img = torch.rand(1, 1, 128, 128)
-        window = _create_gaussian_window(11, 1.5, channels=1)
+        img = torch.rand(1, 1, 128, 128, device=device)
+        window = _create_gaussian_window(11, 1.5, channels=1).to(device)
         filtered = _gaussian_filter(img, window)
 
         # Variance should decrease after smoothing
@@ -209,11 +209,11 @@ class TestGaussianWindowFilterIntegration:
 
         assert filtered.device == img.device
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_cuda_compatibility(self):
+    @pytest.mark.gpu
+    def test_cuda_compatibility(self, gpu_device):
         """Test SSIM helper functions work on CUDA."""
-        img = torch.rand(1, 1, 64, 64).cuda()
-        window = _create_gaussian_window(11, 1.5, channels=1).cuda()
+        img = torch.rand(1, 1, 64, 64, device=gpu_device)
+        window = _create_gaussian_window(11, 1.5, channels=1).to(gpu_device)
         filtered = _gaussian_filter(img, window)
 
         assert filtered.is_cuda
@@ -228,10 +228,10 @@ class TestGaussianWindowFilterIntegration:
 
             assert filtered.dtype == dtype
 
-    def test_gradient_flow(self):
+    def test_gradient_flow(self, device):
         """Test that gradients flow through filtering."""
-        img = torch.rand(1, 1, 64, 64, requires_grad=True)
-        window = _create_gaussian_window(11, 1.5, channels=1)
+        img = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        window = _create_gaussian_window(11, 1.5, channels=1).to(device)
         filtered = _gaussian_filter(img, window)
 
         # Compute some loss
@@ -246,24 +246,24 @@ class TestGaussianWindowFilterIntegration:
 class TestSSIMSingle:
     """Test single-scale SSIM computation (_ssim_single)."""
 
-    def test_perfect_similarity(self):
+    def test_perfect_similarity(self, device):
         """Test SSIM = 1 for identical images."""
         torch.manual_seed(42)
-        img = torch.rand(1, 1, 128, 128)
+        img = torch.rand(1, 1, 128, 128, device=device)
         window = _create_gaussian_window(11, 1.5, channels=1)
         window = window.to(img.device).type_as(img)
 
         ssim_val = _ssim_single(img, img, window)
 
-        assert torch.allclose(ssim_val, torch.tensor(1.0), atol=1e-6), (
+        assert torch.allclose(ssim_val, torch.tensor(1.0, device=device), atol=1e-6), (
             f"SSIM should be 1.0 for identical images, got {ssim_val}"
         )
 
-    def test_ssim_range(self):
+    def test_ssim_range(self, device):
         """Test SSIM is in valid range [0, 1]."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 128, 128)
-        img2 = torch.rand(1, 1, 128, 128)
+        img1 = torch.rand(1, 1, 128, 128, device=device)
+        img2 = torch.rand(1, 1, 128, 128, device=device)
         window = _create_gaussian_window(11, 1.5, channels=1)
         window = window.to(img1.device).type_as(img1)
 
@@ -271,11 +271,11 @@ class TestSSIMSingle:
 
         assert 0 <= ssim_val <= 1, f"SSIM should be in [0, 1], got {ssim_val}"
 
-    def test_ssim_symmetry(self):
+    def test_ssim_symmetry(self, device):
         """Test SSIM(x, y) = SSIM(y, x)."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 64, 64)
-        img2 = torch.rand(1, 1, 64, 64)
+        img1 = torch.rand(1, 1, 64, 64, device=device)
+        img2 = torch.rand(1, 1, 64, 64, device=device)
         window = _create_gaussian_window(11, 1.5, channels=1)
         window = window.to(img1.device).type_as(img1)
 
@@ -362,14 +362,14 @@ class TestSSIMSingle:
 
             assert 0 <= ssim_val <= 1, f"SSIM with window_size={window_size} out of range"
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_ssim_cuda(self):
+    @pytest.mark.gpu
+    def test_ssim_cuda(self, gpu_device):
         """Test SSIM on CUDA device."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 128, 128).cuda()
-        img2 = torch.rand(1, 1, 128, 128).cuda()
+        img1 = torch.rand(1, 1, 128, 128, device=gpu_device)
+        img2 = torch.rand(1, 1, 128, 128, device=gpu_device)
 
-        window = _create_gaussian_window(11, 1.5, channels=1).cuda()
+        window = _create_gaussian_window(11, 1.5, channels=1).to(gpu_device)
 
         ssim_val = _ssim_single(img1, img2, window)
 
@@ -380,11 +380,11 @@ class TestSSIMSingle:
 class TestSSIMDifferentiability:
     """Test SSIM is differentiable."""
 
-    def test_gradients_exist(self):
+    def test_gradients_exist(self, device):
         """Test gradients can be computed."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 64, 64, requires_grad=True)
-        img2 = torch.rand(1, 1, 64, 64)
+        img1 = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        img2 = torch.rand(1, 1, 64, 64, device=device)
 
         window = _create_gaussian_window(11, 1.5, channels=1)
         window = window.to(img1.device).type_as(img1)
@@ -443,11 +443,11 @@ class TestSSIMDifferentiability:
 class TestComputeSSIM:
     """Test _compute_ssim wrapper function."""
 
-    def test_basic_computation(self):
+    def test_basic_computation(self, device):
         """Test basic SSIM computation."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 128, 128)
-        img2 = torch.rand(1, 1, 128, 128)
+        img1 = torch.rand(1, 1, 128, 128, device=device)
+        img2 = torch.rand(1, 1, 128, 128, device=device)
 
         ssim_val = _compute_ssim(img1, img2)
 
@@ -479,14 +479,14 @@ class TestComputeSSIM:
         assert isinstance(ssim_val, torch.Tensor)
         assert 0 <= ssim_val <= 1
 
-    def test_perfect_match(self):
+    def test_perfect_match(self, device):
         """Test SSIM = 1 for identical images."""
         torch.manual_seed(42)
-        img = torch.rand(1, 1, 128, 128)
+        img = torch.rand(1, 1, 128, 128, device=device)
 
         ssim_val = _compute_ssim(img, img)
 
-        assert torch.allclose(ssim_val, torch.tensor(1.0), atol=1e-6)
+        assert torch.allclose(ssim_val, torch.tensor(1.0, device=device), atol=1e-6)
 
     def test_different_parameters(self):
         """Test SSIM with different window_size and sigma."""
@@ -582,20 +582,20 @@ class TestSSIMAccuracy:
 class TestMSSSIM:
     """Test Multi-Scale SSIM (_ms_ssim)."""
 
-    def test_perfect_similarity(self):
+    def test_perfect_similarity(self, device):
         """Test MS-SSIM = 1 for identical images."""
         torch.manual_seed(42)
-        img = torch.rand(1, 1, 256, 256)
+        img = torch.rand(1, 1, 256, 256, device=device)
         ms_ssim = _ms_ssim(img, img)
-        assert torch.allclose(ms_ssim, torch.tensor(1.0), atol=1e-5), (
+        assert torch.allclose(ms_ssim, torch.tensor(1.0, device=device), atol=1e-5), (
             f"MS-SSIM should be 1.0 for identical images, got {ms_ssim}"
         )
 
-    def test_ms_ssim_range(self):
+    def test_ms_ssim_range(self, device):
         """Test MS-SSIM is in valid range [0, 1]."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 256, 256)
-        img2 = img1 + 0.1 * torch.randn(1, 1, 256, 256)
+        img1 = torch.rand(1, 1, 256, 256, device=device)
+        img2 = img1 + 0.1 * torch.randn(1, 1, 256, 256, device=device)
         img2 = torch.clamp(img2, 0, 1)
 
         ms_ssim = _ms_ssim(img1, img2)
@@ -615,11 +615,11 @@ class TestMSSSIM:
         assert isinstance(ms_ssim, torch.Tensor)
         assert ms_ssim.dim() == 0  # Scalar
 
-    def test_ms_ssim_symmetry(self):
+    def test_ms_ssim_symmetry(self, device):
         """Test MS-SSIM(x, y) = MS-SSIM(y, x)."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 256, 256)
-        img2 = torch.rand(1, 1, 256, 256)
+        img1 = torch.rand(1, 1, 256, 256, device=device)
+        img2 = torch.rand(1, 1, 256, 256, device=device)
 
         ms_ssim_12 = _ms_ssim(img1, img2)
         ms_ssim_21 = _ms_ssim(img2, img1)
@@ -708,12 +708,12 @@ class TestMSSSIM:
         assert ms_ssim.dim() == 0  # Scalar (averaged over batch)
         assert 0 <= ms_ssim <= 1
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_cuda_compatibility(self):
+    @pytest.mark.gpu
+    def test_cuda_compatibility(self, gpu_device):
         """Test MS-SSIM on CUDA device."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 256, 256).cuda()
-        img2 = torch.rand(1, 1, 256, 256).cuda()
+        img1 = torch.rand(1, 1, 256, 256, device=gpu_device)
+        img2 = torch.rand(1, 1, 256, 256, device=gpu_device)
 
         ms_ssim = _ms_ssim(img1, img2)
 
@@ -735,11 +735,11 @@ class TestMSSSIM:
 class TestMSSSIMDifferentiability:
     """Test MS-SSIM is differentiable."""
 
-    def test_gradients_exist(self):
+    def test_gradients_exist(self, device):
         """Test gradients can be computed."""
         torch.manual_seed(42)
-        img1 = torch.rand(1, 1, 256, 256, requires_grad=True)
-        img2 = torch.rand(1, 1, 256, 256)
+        img1 = torch.rand(1, 1, 256, 256, device=device, requires_grad=True)
+        img2 = torch.rand(1, 1, 256, 256, device=device)
 
         ms_ssim = _ms_ssim(img1, img2)
         ms_ssim.backward()
@@ -883,12 +883,12 @@ class TestLossAggregatorExisting:
         with pytest.raises(ValueError, match="Unknown loss type"):
             LossAggregator(loss_type="invalid")  # type: ignore[arg-type]
 
-    def test_dual_loss_output(self):
+    def test_dual_loss_output(self, device):
         """Test that LossAggregator returns dual losses."""
         criterion = LossAggregator(loss_type="l1")
 
-        inputs = torch.rand(1, 1, 64, 64)
-        target = torch.rand(2, 1, 64, 64)
+        inputs = torch.rand(1, 1, 64, 64, device=device)
+        target = torch.rand(2, 1, 64, 64, device=device)
 
         loss_old, loss_new = criterion(inputs, target, telescope=None)
 
@@ -909,12 +909,12 @@ class TestLossAggregatorExisting:
         assert loss_old >= 0, "L1 loss should be non-negative"
         assert loss_new >= 0, "L1 loss should be non-negative"
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test that backward pass works."""
         criterion = LossAggregator(loss_type="l1")
 
-        inputs = torch.rand(1, 1, 64, 64, requires_grad=True)
-        target = torch.rand(2, 1, 64, 64)
+        inputs = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        target = torch.rand(2, 1, 64, 64, device=device)
 
         loss_old, loss_new = criterion(inputs, target, telescope=None)
         loss = loss_old + loss_new
@@ -944,12 +944,12 @@ class TestLossAggregatorSSIM:
         assert criterion.sigma == 1.5
         assert criterion.data_range == 1.0
 
-    def test_ssim_dual_loss_output(self):
+    def test_ssim_dual_loss_output(self, device):
         """Test that SSIM returns dual losses."""
         criterion = LossAggregator(loss_type="ssim")
 
-        inputs = torch.rand(1, 1, 128, 128)
-        target = torch.rand(2, 1, 128, 128)
+        inputs = torch.rand(1, 1, 128, 128, device=device)
+        target = torch.rand(2, 1, 128, 128, device=device)
 
         loss_old, loss_new = criterion(inputs, target)
 
@@ -1018,12 +1018,12 @@ class TestLossAggregatorSSIM:
         assert loss_old < 1e-4, f"Perfect match should have loss ~0, got {loss_old}"
         assert loss_new < 1e-4, f"Perfect match should have loss ~0, got {loss_new}"
 
-    def test_ssim_backward_pass(self):
+    def test_ssim_backward_pass(self, device):
         """Test SSIM loss works in backward pass."""
         criterion = LossAggregator(loss_type="ssim")
 
-        inputs = torch.rand(1, 1, 128, 128, requires_grad=True)
-        target = torch.rand(2, 1, 128, 128)
+        inputs = torch.rand(1, 1, 128, 128, device=device, requires_grad=True)
+        target = torch.rand(2, 1, 128, 128, device=device)
 
         loss_old, loss_new = criterion(inputs, target)
         loss = loss_old + loss_new
@@ -1124,12 +1124,12 @@ class TestL1LossStrategy:
         strategy = L1LossStrategy()
         assert strategy.name == "l1"
 
-    def test_perfect_match(self):
+    def test_perfect_match(self, device):
         """Test L1 loss is zero for identical inputs."""
         strategy = L1LossStrategy()
-        pred = torch.rand(1, 1, 64, 64)
+        pred = torch.rand(1, 1, 64, 64, device=device)
         loss = strategy(pred, pred)
-        assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
+        assert torch.allclose(loss, torch.tensor(0.0, device=device), atol=1e-6)
 
     def test_loss_positive(self):
         """Test L1 loss is non-negative."""
@@ -1148,11 +1148,11 @@ class TestL1LossStrategy:
         loss2 = strategy(target, pred)
         assert torch.allclose(loss1, loss2)
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test gradients flow through L1 strategy."""
         strategy = L1LossStrategy()
-        pred = torch.rand(1, 1, 64, 64, requires_grad=True)
-        target = torch.rand(1, 1, 64, 64)
+        pred = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        target = torch.rand(1, 1, 64, 64, device=device)
         loss = strategy(pred, target)
         loss.backward()
         assert pred.grad is not None
@@ -1177,12 +1177,12 @@ class TestL2LossStrategy:
         strategy = L2LossStrategy()
         assert strategy.name == "l2"
 
-    def test_perfect_match(self):
+    def test_perfect_match(self, device):
         """Test L2 loss is zero for identical inputs."""
         strategy = L2LossStrategy()
-        pred = torch.rand(1, 1, 64, 64)
+        pred = torch.rand(1, 1, 64, 64, device=device)
         loss = strategy(pred, pred)
-        assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
+        assert torch.allclose(loss, torch.tensor(0.0, device=device), atol=1e-6)
 
     def test_loss_positive(self):
         """Test L2 loss is non-negative."""
@@ -1201,11 +1201,11 @@ class TestL2LossStrategy:
         loss2 = strategy(target, pred)
         assert torch.allclose(loss1, loss2)
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test gradients flow through L2 strategy."""
         strategy = L2LossStrategy()
-        pred = torch.rand(1, 1, 64, 64, requires_grad=True)
-        target = torch.rand(1, 1, 64, 64)
+        pred = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        target = torch.rand(1, 1, 64, 64, device=device)
         loss = strategy(pred, target)
         loss.backward()
         assert pred.grad is not None
@@ -1254,10 +1254,10 @@ class TestSSIMLossStrategy:
         assert strategy.sigma == 1.0
         assert strategy.data_range == 255.0
 
-    def test_perfect_match(self):
+    def test_perfect_match(self, device):
         """Test SSIM loss is ~0 for identical inputs."""
         strategy = SSIMLossStrategy()
-        pred = torch.rand(1, 1, 128, 128)
+        pred = torch.rand(1, 1, 128, 128, device=device)
         loss = strategy(pred, pred)
         # Perfect match → SSIM = 1 → DSSIM = (1 - 1) / 2 = 0
         assert loss < 1e-5
@@ -1285,22 +1285,22 @@ class TestSSIMLossStrategy:
         _ = strategy(pred, target)
         assert len(strategy._window_cache) == 1
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test gradients flow through SSIM strategy."""
         strategy = SSIMLossStrategy()
-        pred = torch.rand(1, 1, 128, 128, requires_grad=True)
-        target = torch.rand(1, 1, 128, 128)
+        pred = torch.rand(1, 1, 128, 128, device=device, requires_grad=True)
+        target = torch.rand(1, 1, 128, 128, device=device)
         loss = strategy(pred, target)
         loss.backward()
         assert pred.grad is not None
         assert not torch.isnan(pred.grad).any()
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_cuda_compatibility(self):
+    @pytest.mark.gpu
+    def test_cuda_compatibility(self, gpu_device):
         """Test SSIM strategy on CUDA."""
         strategy = SSIMLossStrategy()
-        pred = torch.rand(1, 1, 128, 128).cuda()
-        target = torch.rand(1, 1, 128, 128).cuda()
+        pred = torch.rand(1, 1, 128, 128, device=gpu_device)
+        target = torch.rand(1, 1, 128, 128, device=gpu_device)
         loss = strategy(pred, target)
         assert loss.is_cuda
         assert 0 <= loss <= 0.6
@@ -1334,10 +1334,10 @@ class TestMSSSIMLossStrategy:
         assert strategy.weights == custom_weights
         assert strategy.num_scales == 3
 
-    def test_perfect_match(self):
+    def test_perfect_match(self, device):
         """Test MS-SSIM loss is ~0 for identical inputs."""
         strategy = MSSSIMLossStrategy()
-        pred = torch.rand(1, 1, 256, 256)
+        pred = torch.rand(1, 1, 256, 256, device=device)
         loss = strategy(pred, pred)
         # Perfect match → MS-SSIM = 1 → DSSIM = 0
         assert loss < 1e-4
@@ -1358,11 +1358,11 @@ class TestMSSSIMLossStrategy:
         with pytest.raises(ValueError, match="Input too small"):
             strategy(pred, target)
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test gradients flow through MS-SSIM strategy."""
         strategy = MSSSIMLossStrategy()
-        pred = torch.rand(1, 1, 256, 256, requires_grad=True)
-        target = torch.rand(1, 1, 256, 256)
+        pred = torch.rand(1, 1, 256, 256, device=device, requires_grad=True)
+        target = torch.rand(1, 1, 256, 256, device=device)
         loss = strategy(pred, target)
         loss.backward()
         assert pred.grad is not None
@@ -1409,7 +1409,7 @@ class TestCompositeLossStrategy:
         strategy = CompositeLossStrategy(losses)
         assert strategy is not None
 
-    def test_l1_l2_composite(self):
+    def test_l1_l2_composite(self, device):
         """Test composite of L1 and L2."""
         losses = {
             "l1": (L1LossStrategy(), 0.6),
@@ -1417,8 +1417,8 @@ class TestCompositeLossStrategy:
         }
         strategy = CompositeLossStrategy(losses)
 
-        pred = torch.rand(1, 1, 64, 64)
-        target = torch.rand(1, 1, 64, 64)
+        pred = torch.rand(1, 1, 64, 64, device=device)
+        target = torch.rand(1, 1, 64, 64, device=device)
 
         # Compute composite loss
         composite_loss = strategy(pred, target)
@@ -1469,7 +1469,7 @@ class TestCompositeLossStrategy:
         assert composite_loss.dim() == 0
         assert composite_loss >= 0
 
-    def test_backward_pass(self):
+    def test_backward_pass(self, device):
         """Test gradients flow through composite strategy."""
         losses = {
             "l1": (L1LossStrategy(), 0.6),
@@ -1477,8 +1477,8 @@ class TestCompositeLossStrategy:
         }
         strategy = CompositeLossStrategy(losses)
 
-        pred = torch.rand(1, 1, 128, 128, requires_grad=True)
-        target = torch.rand(1, 1, 128, 128)
+        pred = torch.rand(1, 1, 128, 128, device=device, requires_grad=True)
+        target = torch.rand(1, 1, 128, 128, device=device)
 
         loss = strategy(pred, target)
         loss.backward()
@@ -1518,15 +1518,15 @@ class TestLossAggregatorWithComposite:
         with pytest.raises(ValueError, match="loss_weights must be provided"):
             LossAggregator(loss_type="composite")
 
-    def test_composite_dual_loss_output(self):
+    def test_composite_dual_loss_output(self, device):
         """Test composite returns dual losses."""
         criterion = LossAggregator(
             loss_type="composite",
             loss_weights={"l1": 0.6, "l2": 0.4},
         )
 
-        inputs = torch.rand(1, 1, 64, 64)
-        target = torch.rand(2, 1, 64, 64)
+        inputs = torch.rand(1, 1, 64, 64, device=device)
+        target = torch.rand(2, 1, 64, 64, device=device)
 
         loss_old, loss_new = criterion(inputs, target, telescope=None)
 
@@ -1550,15 +1550,15 @@ class TestLossAggregatorWithComposite:
         assert loss_old >= 0
         assert loss_new >= 0
 
-    def test_composite_backward_pass(self):
+    def test_composite_backward_pass(self, device):
         """Test composite loss works in backward pass."""
         criterion = LossAggregator(
             loss_type="composite",
             loss_weights={"l1": 0.5, "l2": 0.5},
         )
 
-        inputs = torch.rand(1, 1, 64, 64, requires_grad=True)
-        target = torch.rand(2, 1, 64, 64)
+        inputs = torch.rand(1, 1, 64, 64, device=device, requires_grad=True)
+        target = torch.rand(2, 1, 64, 64, device=device)
 
         loss_old, loss_new = criterion(inputs, target, telescope=None)
         loss = loss_old + loss_new
@@ -1627,25 +1627,25 @@ class TestLossAggregatorStrategyKwargs:
 class TestLossStrategyDeviceConsistency:
     """Test loss strategies maintain device consistency."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_l1_cuda(self):
+    @pytest.mark.gpu
+    def test_l1_cuda(self, gpu_device):
         """Test L1 strategy on CUDA."""
         strategy = L1LossStrategy()
-        pred = torch.rand(1, 1, 64, 64).cuda()
-        target = torch.rand(1, 1, 64, 64).cuda()
+        pred = torch.rand(1, 1, 64, 64, device=gpu_device)
+        target = torch.rand(1, 1, 64, 64, device=gpu_device)
         loss = strategy(pred, target)
         assert loss.is_cuda
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_composite_cuda(self):
+    @pytest.mark.gpu
+    def test_composite_cuda(self, gpu_device):
         """Test composite strategy on CUDA."""
         losses = {
             "l1": (L1LossStrategy(), 0.5),
             "l2": (L2LossStrategy(), 0.5),
         }
         strategy = CompositeLossStrategy(losses)
-        pred = torch.rand(1, 1, 64, 64).cuda()
-        target = torch.rand(1, 1, 64, 64).cuda()
+        pred = torch.rand(1, 1, 64, 64, device=gpu_device)
+        target = torch.rand(1, 1, 64, 64, device=gpu_device)
         loss = strategy(pred, target)
         assert loss.is_cuda
 

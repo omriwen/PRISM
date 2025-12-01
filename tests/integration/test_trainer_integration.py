@@ -201,12 +201,6 @@ def create_minimal_args() -> Mock:
 
 
 @pytest.fixture
-def device() -> torch.device:
-    """Get device (CPU for reproducibility in CI)."""
-    return torch.device("cpu")
-
-
-@pytest.fixture
 def small_model(device: torch.device) -> ProgressiveDecoder:
     """Create a small ProgressiveDecoder for integration testing."""
     model = ProgressiveDecoder(input_size=64, latent_channels=32)
@@ -587,7 +581,6 @@ class TestTrainerMetrics:
 
 @pytest.mark.integration
 @pytest.mark.gpu
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
 class TestTrainerCUDA:
     """Integration tests for CUDA-specific functionality."""
 
@@ -646,17 +639,12 @@ class TestTrainerCUDA:
         assert results is not None
         assert results["final_reconstruction"] is not None
 
-    @pytest.mark.xfail(
-        reason="AMP with SSIM has known type mismatch issues in metrics computation",
-        strict=False,
-    )
     def test_training_with_amp_on_cuda(self) -> None:
         """Test training on CUDA with automatic mixed precision.
 
-        Note: This test is marked as xfail because the SSIM computation
-        in the trainer's initialization phase can have dtype mismatches
-        when using AMP. This is a known issue with AMP and convolution
-        operations that needs to be fixed in the losses module.
+        Tests that AMP (Automatic Mixed Precision) works correctly with SSIM loss.
+        The SSIM computation is now properly wrapped with autocast(enabled=False)
+        and uses float32 for numerical stability.
         """
         device = torch.device("cuda")
 

@@ -112,6 +112,7 @@ class PRISMTrainer:
         log_dir: str | None = None,
         writer: SummaryWriter | None = None,
         use_amp: bool = False,
+        callbacks: list[Any] | None = None,
     ):
         self.model = model
         self.optimizer = optimizer
@@ -122,6 +123,7 @@ class PRISMTrainer:
         self.log_dir = log_dir
         self.writer = writer
         self.use_amp = use_amp
+        self.callbacks = callbacks or []
 
         # Initialize GradScaler for mixed precision training
         self.scaler: torch.cuda.amp.GradScaler | None = (
@@ -145,6 +147,22 @@ class PRISMTrainer:
         # State
         self.current_reconstruction: torch.Tensor | None = None
         self.training_start_time = time.time()
+
+    def _invoke_callbacks(self, method: str, *args: Any, **kwargs: Any) -> None:
+        """Invoke callback method if it exists on registered callbacks.
+
+        Parameters
+        ----------
+        method : str
+            Name of the callback method to invoke (e.g., 'on_epoch_end')
+        *args : Any
+            Positional arguments to pass to the callback method
+        **kwargs : Any
+            Keyword arguments to pass to the callback method
+        """
+        for callback in self.callbacks:
+            if hasattr(callback, method):
+                getattr(callback, method)(*args, **kwargs)
 
     def run_initialization(
         self,
@@ -404,6 +422,9 @@ class PRISMTrainer:
 
             # Process each sample position sequentially
             for center_idx, center_ends in enumerate(sample_centers, start=self.args.n_samples_0):
+                # Invoke callback at sample start
+                self._invoke_callbacks("on_sample_start", center_idx)
+
                 counter = 0
                 center, center_rec = patterns.create_patterns(
                     center_ends, samples_per_line_meas, self.args.samples_per_line_rec
@@ -511,6 +532,9 @@ class PRISMTrainer:
                     counter += 1
 
                     for epoch in range(self.args.n_epochs):
+                        # Invoke callback at epoch start
+                        self._invoke_callbacks("on_epoch_start", epoch)
+
                         self.optimizer.zero_grad()
 
                         # Forward pass with AMP if enabled
@@ -620,6 +644,9 @@ class PRISMTrainer:
                         else:
                             loss.backward()
                             self.optimizer.step()
+
+                        # Invoke callback at epoch end
+                        self._invoke_callbacks("on_epoch_end", epoch, loss.item())
 
                     # Step scheduler (handle both types)
                     if isinstance(self.scheduler, ReduceLROnPlateau):
@@ -737,6 +764,14 @@ class PRISMTrainer:
                     else:
                         # Point mode or legacy line mode
                         self.measurement_system.add_mask(center)
+
+                # Invoke callback at sample end
+                self._invoke_callbacks(
+                    "on_sample_end", center_idx, {"loss": loss.item(), "ssim": ssim}
+                )
+
+            # Invoke callback at training end
+            self._invoke_callbacks("on_training_end")
 
             training_progress.set_total(epoch_task_id, max(epoch_steps_completed, 1))
             training_progress.complete(epoch_task_id)

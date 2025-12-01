@@ -222,6 +222,12 @@ def register_callbacks(app, server):
                 # Comparison tab - placeholder for comparison content
                 return (html.Div(id="comparison-content"), hide_live)
 
+            elif tab == "tab-profiler":
+                # Profiler tab - standalone profiling view
+                from ..layouts.profiling import create_profiling_layout
+
+                return (create_profiling_layout(), hide_live)
+
         except Exception as e:  # noqa: BLE001 - Dash callback must handle all errors
             logger.error(f"Error updating tab content: {e}")
             return (

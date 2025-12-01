@@ -15,6 +15,7 @@ from .main import (
     create_reconstruction_comparison,
     create_training_curves,
 )
+from .profiling import create_profiling_layout
 
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "create_live_training_plot",
     "create_live_reconstruction_preview",
     "create_kspace_coverage_plot",
+    "create_profiling_layout",
 ]

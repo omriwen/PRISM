@@ -396,7 +396,6 @@ class TestOTFAnalytical:
             "aperture": aperture,
         }
 
-    @pytest.mark.skip(reason="OTF cutoff test requires proper frequency-space calibration")
     def test_otf_cutoff_frequency_doubles(self, setup_otf):
         """
         OTF cutoff = 2× CTF cutoff.
@@ -406,18 +405,30 @@ class TestOTFAnalytical:
 
         Test: OTF should be negligible (<1% of peak) beyond 2×CTF_cutoff
 
-        NOTE: Skipped because the OTF frequency coordinates need to be carefully
-        mapped to physical cutoff frequencies. This requires understanding the
-        exact coordinate system conventions used in the OTFPropagator implementation.
+        Note: The OTF cutoff frequency is determined by the aperture size in pixels
+        and the frequency grid spacing, NOT by the formula aperture_diameter/wavelength.
+        This is because the OTF is computed in the pupil plane's frequency domain.
         """
         data = setup_otf
         otf = data["otf"]
         grid = data["grid"]
-        otf_cutoff = data["otf_cutoff"]
+        aperture = data["aperture"]
 
         # Compute frequency coordinates (OTF is already centered)
-        # Use fftfreq to get frequency bins, then fftshift to center them
         freq_1d = torch.fft.fftshift(torch.fft.fftfreq(grid.nx, d=grid.dx))
+        freq_spacing = freq_1d[1] - freq_1d[0]
+
+        # Calculate aperture radius in pixels
+        # Aperture is a binary mask, find its extent
+        center_idx = aperture.shape[0] // 2
+        aperture_1d = aperture[center_idx, center_idx:]
+        aperture_radius_pixels = (aperture_1d > 0.5).sum().item()
+
+        # Correct OTF cutoff formula (based on grid parameters)
+        # OTF support = 2 * aperture_radius (in frequency space)
+        otf_cutoff_correct = 2 * aperture_radius_pixels * freq_spacing
+
+        # Create radial frequency grid
         kx_grid, ky_grid = torch.meshgrid(freq_1d, freq_1d, indexing="ij")
         k_radial = torch.sqrt(kx_grid**2 + ky_grid**2)
 
@@ -426,17 +437,17 @@ class TestOTFAnalytical:
         threshold = 0.01 * otf_peak  # 1% threshold
 
         # Check beyond theoretical OTF cutoff
-        beyond_cutoff_mask = k_radial > (1.1 * otf_cutoff)
+        beyond_cutoff_mask = k_radial > (1.1 * otf_cutoff_correct)
         otf_beyond = otf[beyond_cutoff_mask].abs()
 
         if len(otf_beyond) > 0:
             max_beyond = otf_beyond.max().item()
             assert max_beyond < threshold.item(), (
                 f"OTF beyond cutoff: {max_beyond:.2e}, "
-                f"expected < {threshold.item():.2e} (1% of peak)"
+                f"expected < {threshold.item():.2e} (1% of peak)\n"
+                f"Cutoff frequency used: {otf_cutoff_correct.item():.2e} cycles/m"
             )
 
-    @pytest.mark.skip(reason="OTF shape test requires proper frequency normalization")
     def test_otf_shape_circular_aperture(self, setup_otf):
         """
         Compare to analytical formula for circular aperture.
@@ -446,21 +457,27 @@ class TestOTFAnalytical:
 
         Test tolerance: 10% L2 error (relaxed due to discretization)
 
-        NOTE: Skipped because matching the numerical OTF to the analytical formula
-        requires careful attention to the frequency scaling and coordinate system
-        conventions. This is left for future refinement.
+        Note: Uses corrected OTF cutoff formula based on grid parameters.
         """
         data = setup_otf
         otf = data["otf"]
         grid = data["grid"]
-        otf_cutoff = data["otf_cutoff"]
+        aperture = data["aperture"]
 
         # Get radial OTF profile along x-axis
         center_idx = otf.shape[0] // 2
 
         # Frequency coordinates (centered)
         freq_1d = torch.fft.fftshift(torch.fft.fftfreq(grid.nx, d=grid.dx))
+        freq_spacing = freq_1d[1] - freq_1d[0]
         k_1d = freq_1d[center_idx:].cpu().numpy()
+
+        # Calculate aperture radius in pixels
+        aperture_1d = aperture[center_idx, center_idx:]
+        aperture_radius_pixels = (aperture_1d > 0.5).sum().item()
+
+        # Correct OTF cutoff (based on grid parameters)
+        otf_cutoff_correct = 2 * aperture_radius_pixels * freq_spacing.item()
 
         # Measured OTF (radial slice)
         measured_otf = otf[center_idx, center_idx:].cpu().numpy()
@@ -471,7 +488,7 @@ class TestOTFAnalytical:
             measured_otf = measured_otf / dc_value
 
         # Analytical OTF
-        rho = k_1d / otf_cutoff  # Normalized frequency [0, 1]
+        rho = k_1d / otf_cutoff_correct  # Normalized frequency [0, 1]
         analytical_otf = analytical_otf_circular(rho)
 
         # Compare only within valid range (where OTF is non-negligible)
@@ -483,7 +500,10 @@ class TestOTFAnalytical:
             l2_error_percent = l2_error * 100
 
             # Relaxed tolerance due to discretization effects
-            assert l2_error_percent < 10.0, f"OTF L2 error: {l2_error_percent:.2f}%, tolerance: 10%"
+            assert l2_error_percent < 10.0, (
+                f"OTF L2 error: {l2_error_percent:.2f}%, tolerance: 10%\n"
+                f"OTF cutoff used: {otf_cutoff_correct:.2e} cycles/m"
+            )
 
     def test_otf_is_autocorrelation_of_ctf(self, setup_otf):
         """
@@ -564,21 +584,18 @@ class TestOTFAnalytical:
         assert imag_max < 1e-6, f"OTF imaginary part: {imag_max:.2e}, expected < 1e-6"
 
     @pytest.mark.slow
-    @pytest.mark.skip(reason="High-resolution OTF test requires frequency calibration")
     def test_otf_high_resolution(self):
         """
         High-resolution OTF test with 1024×1024 grid.
 
         Uses finer sampling for better accuracy.
 
-        NOTE: Skipped for same reasons as test_otf_shape_circular_aperture.
+        Note: Uses corrected OTF cutoff formula based on grid parameters.
         """
         wavelength = 550e-9
         aperture_radius_pixels = 128  # Larger aperture for better sampling
         n_pixels = 1024
         pixel_size = 5e-6  # 5 micron pixels
-
-        aperture_diameter = 2 * aperture_radius_pixels * pixel_size
 
         grid = Grid(nx=n_pixels, dx=pixel_size, wavelength=wavelength)
         aperture = create_circular_aperture(grid, radius=aperture_radius_pixels * pixel_size)
@@ -586,22 +603,23 @@ class TestOTFAnalytical:
         otf_prop = OTFPropagator(aperture.to(torch.cfloat), grid=grid, normalize=True)
         otf = otf_prop.get_otf()
 
-        # Frequency parameters
-        ctf_cutoff = aperture_diameter / wavelength
-        otf_cutoff = 2 * ctf_cutoff
-
-        # Get radial profile
+        # Compute frequency parameters
         center_idx = n_pixels // 2
         freq_1d = torch.fft.fftshift(torch.fft.fftfreq(grid.nx, d=grid.dx))
+        freq_spacing = freq_1d[1] - freq_1d[0]
         k_1d = freq_1d[center_idx:].cpu().numpy()
 
+        # Correct OTF cutoff (based on grid parameters)
+        otf_cutoff_correct = 2 * aperture_radius_pixels * freq_spacing.item()
+
+        # Get radial profile
         measured_otf = otf[center_idx, center_idx:].cpu().numpy()
         dc_value = otf[center_idx, center_idx].item()
         if dc_value > 0:
             measured_otf = measured_otf / dc_value
 
         # Analytical
-        rho = k_1d / otf_cutoff
+        rho = k_1d / otf_cutoff_correct
         analytical_otf = analytical_otf_circular(rho)
 
         valid_mask = (rho >= 0) & (rho <= 1.0)
@@ -613,5 +631,6 @@ class TestOTFAnalytical:
 
             # Should have better accuracy with higher resolution
             assert l2_error_percent < 8.0, (
-                f"High-res OTF L2 error: {l2_error_percent:.2f}%, tolerance: 8%"
+                f"High-res OTF L2 error: {l2_error_percent:.2f}%, tolerance: 8%\n"
+                f"OTF cutoff used: {otf_cutoff_correct:.2e} cycles/m"
             )

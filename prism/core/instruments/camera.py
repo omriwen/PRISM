@@ -107,31 +107,24 @@ class Camera(FourFSystem):
         illumination_mode: Optional[str] = None,
         illumination_params: Optional[dict] = None,
     ) -> tuple[Optional[Tensor], Optional[Tensor]]:
-        """Create illumination and detection pupil functions.
+        """Create detection pupil based on f-number.
 
-        For camera, we use:
-        - No illumination pupil (far-field assumption: plane wave illumination)
-        - Detection pupil = lens aperture (circular aperture limited by f-number)
-
-        Parameters
-        ----------
-        illumination_mode : str, optional
-            Unused for basic camera (cameras don't have illumination control)
-        illumination_params : dict, optional
-            Unused for basic camera
-
-        Returns
-        -------
-        tuple[Tensor or None, Tensor or None]
-            (None, detection_pupil) where detection_pupil is the lens aperture
+        The aperture radius in k-space is calculated from the physical
+        f-number: NA_eff = 1 / (2 * f_number), giving k_cutoff = NA_eff / lambda.
         """
-        # Camera detection pupil: use a reasonable aperture size in pixels
-        # For most cameras, an aperture radius of 20-30% of the image size works well
-        # This represents the effective aperture in the Fourier domain
-        aperture_radius_pixels = self.config.n_pixels * 0.25  # 25% of image size
-        detection_pupil = self._aperture_generator_lazy.circular(radius=aperture_radius_pixels)
+        # Calculate aperture from f-number (not hardcoded percentage)
+        na_effective = 1.0 / (2.0 * self.f_number)
+        k_cutoff = na_effective / self.config.wavelength
+        k_max = 1.0 / (2.0 * self.config.pixel_size)
+        aperture_radius_pixels = (k_cutoff / k_max) * (self.config.n_pixels / 2)
 
-        # No illumination pupil for camera (far-field assumption)
+        # Clamp to valid range (leave margin for edge effects)
+        aperture_radius_pixels = min(
+            aperture_radius_pixels,
+            self.config.n_pixels * 0.45
+        )
+
+        detection_pupil = self._aperture_generator_lazy.circular(radius=aperture_radius_pixels)
         return None, detection_pupil
 
     @property

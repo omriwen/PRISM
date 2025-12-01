@@ -468,12 +468,11 @@ class TestScanningIlluminationDevice:
         )
         assert result.device == simple_object.device
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_cuda_device_handling(self, microscope: Microscope, simple_object: Tensor) -> None:
+    @pytest.mark.gpu
+    def test_cuda_device_handling(self, microscope: Microscope, simple_object: Tensor, gpu_device) -> None:
         """Test scanning illumination works on CUDA device."""
-        device = torch.device("cuda")
-        microscope_cuda = microscope.to(device)
-        obj_cuda = simple_object.to(device)
+        microscope_cuda = microscope.to(gpu_device)
+        obj_cuda = simple_object.to(gpu_device)
 
         result = microscope_cuda.forward(
             obj_cuda,

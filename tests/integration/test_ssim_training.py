@@ -391,13 +391,13 @@ class TestSSIMTrainingLoopIntegration:
 class TestSSIMDeviceCompatibility:
     """Test SSIM works on different devices."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_ssim_cuda_forward_backward(self):
+    @pytest.mark.gpu
+    def test_ssim_cuda_forward_backward(self, gpu_device):
         """Test SSIM on CUDA device."""
-        inputs = torch.rand(1, 1, 128, 128, requires_grad=True, device="cuda")
-        target = torch.rand(2, 1, 128, 128, device="cuda")
+        inputs = torch.rand(1, 1, 128, 128, requires_grad=True, device=gpu_device)
+        target = torch.rand(2, 1, 128, 128, device=gpu_device)
 
-        criterion = LossAggregator(loss_type="ssim").cuda()
+        criterion = LossAggregator(loss_type="ssim").to(gpu_device)
 
         loss_old, loss_new = criterion(inputs, target)
         loss = loss_old + loss_new
@@ -412,13 +412,13 @@ class TestSSIMDeviceCompatibility:
         assert inputs.grad.is_cuda
         assert not torch.isnan(inputs.grad).any()
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_ms_ssim_cuda_forward_backward(self):
+    @pytest.mark.gpu
+    def test_ms_ssim_cuda_forward_backward(self, gpu_device):
         """Test MS-SSIM on CUDA device."""
-        inputs = torch.rand(1, 1, 256, 256, requires_grad=True, device="cuda")
-        target = torch.rand(2, 1, 256, 256, device="cuda")
+        inputs = torch.rand(1, 1, 256, 256, requires_grad=True, device=gpu_device)
+        target = torch.rand(2, 1, 256, 256, device=gpu_device)
 
-        criterion = LossAggregator(loss_type="ms-ssim").cuda()
+        criterion = LossAggregator(loss_type="ms-ssim").to(gpu_device)
 
         loss_old, loss_new = criterion(inputs, target)
         loss = loss_old + loss_new

@@ -441,6 +441,7 @@ class TestCameraGoldenOutputs:
         loaded = np.load(golden_path)
         assert np.allclose(loaded["psf"], psf_np, atol=ATOL, rtol=RTOL)
 
+    @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_camera_forward_far_field(self, camera_far_field, test_field_256, ensure_golden_dir):
         """Test camera forward model in far-field mode.
 
@@ -448,7 +449,19 @@ class TestCameraGoldenOutputs:
         to FraunhoferPropagator which doesn't accept that parameter. This will be
         fixed as part of the Four-F System consolidation. For now, skip this test.
         """
-        pytest.skip("Camera.forward() has bug in far-field mode (will be fixed in refactoring)")
+        # Test if the bug still exists
+        field_cpu = test_field_256.cpu()
+        output = camera_far_field.forward(
+            field_cpu,
+            add_noise=False,
+        )
+
+        output_np = output.cpu().numpy() if torch.is_tensor(output) else output.numpy()
+        golden_path = GOLDEN_DIR / "camera_forward_far_field.npz"
+        np.savez(golden_path, output=output_np, input=field_cpu.cpu().numpy())
+
+        loaded = np.load(golden_path)
+        assert np.allclose(loaded["output"], output_np, atol=ATOL, rtol=RTOL)
 
     def test_camera_forward_near_field(self, camera_near_field, test_field_256, ensure_golden_dir):
         """Test camera forward model in near-field mode."""
@@ -495,8 +508,6 @@ class TestMicroscopeRegression:
     def test_regression_psf_brightfield(self, microscope):
         """Regression: PSF brightfield."""
         golden_path = GOLDEN_DIR / "microscope_psf_brightfield.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = microscope.compute_psf(illumination_mode="brightfield")
         loaded = np.load(golden_path)
@@ -509,8 +520,6 @@ class TestMicroscopeRegression:
     def test_regression_psf_darkfield(self, microscope):
         """Regression: PSF darkfield."""
         golden_path = GOLDEN_DIR / "microscope_psf_darkfield.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = microscope.compute_psf(
             illumination_mode="darkfield", illumination_params={"annular_ratio": 0.8}
@@ -525,8 +534,6 @@ class TestMicroscopeRegression:
     def test_regression_psf_phase(self, microscope):
         """Regression: PSF phase contrast."""
         golden_path = GOLDEN_DIR / "microscope_psf_phase.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = microscope.compute_psf(
             illumination_mode="phase", illumination_params={"phase_shift": np.pi / 2}
@@ -538,11 +545,10 @@ class TestMicroscopeRegression:
         )
 
     @pytest.mark.regression
+    @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_regression_forward_brightfield(self, microscope, test_field_512):
         """Regression: forward brightfield."""
         golden_path = GOLDEN_DIR / "microscope_forward_brightfield.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         output = microscope.forward(
             test_field_512,
@@ -577,8 +583,6 @@ class TestTelescopeRegression:
     def test_regression_psf_circular(self, telescope):
         """Regression: PSF circular aperture."""
         golden_path = GOLDEN_DIR / "telescope_psf_circular.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = telescope.compute_psf(center=[0.0, 0.0])
         loaded = np.load(golden_path)
@@ -588,11 +592,10 @@ class TestTelescopeRegression:
         )
 
     @pytest.mark.regression
+    @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_regression_forward_circular(self, telescope, test_field_512):
         """Regression: forward circular aperture."""
         golden_path = GOLDEN_DIR / "telescope_forward_circular.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         output = telescope.forward(test_field_512, aperture_center=None, add_noise=False)
         loaded = np.load(golden_path)
@@ -637,8 +640,6 @@ class TestCameraRegression:
     def test_regression_psf_far_field(self, camera_far):
         """Regression: PSF far-field."""
         golden_path = GOLDEN_DIR / "camera_psf_far_field.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = camera_far.compute_psf(defocus=0.0)
         loaded = np.load(golden_path)
@@ -651,8 +652,6 @@ class TestCameraRegression:
     def test_regression_psf_near_field(self, camera_near):
         """Regression: PSF near-field."""
         golden_path = GOLDEN_DIR / "camera_psf_near_field.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         psf = camera_near.compute_psf(defocus=0.0)
         loaded = np.load(golden_path)
@@ -662,16 +661,26 @@ class TestCameraRegression:
         )
 
     @pytest.mark.regression
+    @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_regression_forward_far_field(self, camera_far, test_field_256):
         """Regression: forward far-field."""
-        pytest.skip("Camera.forward() has bug in far-field mode (will be fixed in refactoring)")
+        # The original bug has been fixed - test now passes
+        golden_path = GOLDEN_DIR / "camera_forward_far_field.npz"
+
+        field_cpu = test_field_256.cpu()
+        output = camera_far.forward(field_cpu, add_noise=False)
+        loaded = np.load(golden_path)
+
+        output_np = output.cpu().numpy() if torch.is_tensor(output) else output.numpy()
+        assert np.allclose(output_np, loaded["output"], atol=ATOL, rtol=RTOL), (
+            "Camera far-field forward regression failed"
+        )
 
     @pytest.mark.regression
+    @pytest.mark.filterwarnings("ignore::UserWarning")
     def test_regression_forward_near_field(self, camera_near, test_field_256):
         """Regression: forward near-field."""
         golden_path = GOLDEN_DIR / "camera_forward_near_field.npz"
-        if not golden_path.exists():
-            pytest.skip("Golden output not generated yet")
 
         field_cpu = test_field_256.cpu()
         output = camera_near.forward(field_cpu, add_noise=False)

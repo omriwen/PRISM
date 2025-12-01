@@ -84,6 +84,9 @@ class PRISMRunner:
         # Dashboard
         self.dashboard_launcher: Any = None
 
+        # Profiling
+        self.profiler: Any = None
+
         # Data
         self.image: torch.Tensor | None = None
         self.image_gt: torch.Tensor | None = None
@@ -413,6 +416,16 @@ class PRISMRunner:
         )
         assert self.device is not None, "Device must be set before trainer"
 
+        # Create profiler if requested
+        callbacks = []
+        if getattr(self.args, "profile", False):
+            from prism.profiling import ProfilerConfig, TrainingProfiler
+
+            config = ProfilerConfig(enabled=True)
+            self.profiler = TrainingProfiler(config)
+            callbacks = [self.profiler.callback]
+            logger.info("Profiling enabled")
+
         self.trainer = PRISMTrainer(
             model=self.model,
             optimizer=self.optimizer,
@@ -423,6 +436,7 @@ class PRISMRunner:
             log_dir=self.log_dir,
             writer=self.writer,
             use_amp=getattr(self.args, "use_mixed_precision", False),
+            callbacks=callbacks,
         )
 
     def run_initialization(self) -> Any:
@@ -583,6 +597,22 @@ class PRISMRunner:
             os.path.join(self.log_dir, "checkpoint.pt"),
         )
 
+    def save_profile_if_needed(self) -> None:
+        """Save profiling data if profiling was enabled."""
+        if self.profiler is None:
+            return
+
+        # Determine output path
+        if hasattr(self.args, "profile_output") and self.args.profile_output is not None:
+            output_path = Path(self.args.profile_output)
+        else:
+            assert self.log_dir is not None, "Log directory must be set when profiling"
+            output_path = Path(self.log_dir) / "profile.pt"
+
+        # Save profile
+        self.profiler.save(output_path)
+        logger.info(f"Profile saved to {output_path}")
+
     def save_final_figures(self) -> None:
         """Generate and save final visualization figures."""
         if not self.args.save_data:
@@ -714,6 +744,9 @@ class PRISMRunner:
                 # Checkpoint loaded - skip initialization
                 self.create_trainer()
                 self.run_training(figure=None)
+
+            # Save profiling data if enabled
+            self.save_profile_if_needed()
 
             self.save_final_figures()
         finally:

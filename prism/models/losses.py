@@ -264,21 +264,32 @@ def _compute_ssim(
         - Creates fresh Gaussian window each call (LossAggregator caches it)
         - Parameters match scikit-image's structural_similarity defaults
         - Differentiable for use as loss function
+        - AMP-safe: disables autocast and uses float32 for numerical stability
     """
-    # Ensure 4D tensors
-    if img1.dim() == 3:
-        img1 = img1.unsqueeze(0)
-    if img2.dim() == 3:
-        img2 = img2.unsqueeze(0)
+    # AMP-safe SSIM computation: disable autocast and use float32
+    # SSIM requires float32 for numerical stability in convolution operations
+    with torch.cuda.amp.autocast(enabled=False):
+        # Ensure 4D tensors
+        if img1.dim() == 3:
+            img1 = img1.unsqueeze(0)
+        if img2.dim() == 3:
+            img2 = img2.unsqueeze(0)
 
-    channels = img1.shape[1]
+        # Convert to float32 for SSIM computation
+        img1_fp32 = img1.float()
+        img2_fp32 = img2.float()
 
-    # Create Gaussian window (cached in LossAggregator)
-    window = _create_gaussian_window(window_size, sigma, channels)
-    window = window.to(img1.device).type_as(img1)
+        channels = img1_fp32.shape[1]
 
-    # Compute SSIM
-    return _ssim_single(img1, img2, window, data_range, use_sample_covariance=False)
+        # Create Gaussian window (always float32 for SSIM)
+        window = _create_gaussian_window(window_size, sigma, channels)
+        window = window.to(img1_fp32.device, dtype=torch.float32)
+
+        # Compute SSIM
+        result = _ssim_single(img1_fp32, img2_fp32, window, data_range, use_sample_covariance=False)
+
+    # Return result (will be cast back to original dtype by caller if needed)
+    return result
 
 
 def _ms_ssim(
@@ -330,76 +341,83 @@ def _ms_ssim(
         Wang, Z., Simoncelli, E. P., & Bovik, A. C. (2003).
         "Multiscale structural similarity for image quality assessment."
     """
-    # Default weights for 5 scales (standard configuration)
-    if weights is None:
-        weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
+    # AMP-safe MS-SSIM computation: disable autocast and use float32
+    # MS-SSIM requires float32 for numerical stability in convolution operations
+    with torch.cuda.amp.autocast(enabled=False):
+        # Default weights for 5 scales (standard configuration)
+        if weights is None:
+            weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333]
 
-    # Ensure 4D tensors
-    if img1.dim() == 3:
-        img1 = img1.unsqueeze(0)
-    if img2.dim() == 3:
-        img2 = img2.unsqueeze(0)
+        # Ensure 4D tensors
+        if img1.dim() == 3:
+            img1 = img1.unsqueeze(0)
+        if img2.dim() == 3:
+            img2 = img2.unsqueeze(0)
 
-    # Convert weights to tensor
-    weights_tensor = torch.tensor(weights, device=img1.device, dtype=img1.dtype)
+        # Convert to float32 for MS-SSIM computation
+        img1_fp32 = img1.float()
+        img2_fp32 = img2.float()
 
-    levels = len(weights)
-    mcs = []  # Multi-scale contrast-structure components
+        # Convert weights to tensor (float32)
+        weights_tensor = torch.tensor(weights, device=img1_fp32.device, dtype=torch.float32)
 
-    channels = img1.shape[1]
-    window = _create_gaussian_window(window_size, sigma, channels)
-    window = window.to(img1.device).type_as(img1)
+        levels = len(weights)
+        mcs = []  # Multi-scale contrast-structure components
 
-    # Constants (matching scikit-image)
-    c1 = (0.01 * data_range) ** 2
-    c2 = (0.03 * data_range) ** 2
+        channels = img1_fp32.shape[1]
+        window = _create_gaussian_window(window_size, sigma, channels)
+        window = window.to(img1_fp32.device, dtype=torch.float32)
 
-    for i in range(levels):
-        # Compute SSIM components at this scale
-        mu1 = _gaussian_filter(img1, window)
-        mu2 = _gaussian_filter(img2, window)
+        # Constants (matching scikit-image)
+        c1 = (0.01 * data_range) ** 2
+        c2 = (0.03 * data_range) ** 2
 
-        mu1_sq = mu1**2
-        mu2_sq = mu2**2
-        mu1_mu2 = mu1 * mu2
+        for i in range(levels):
+            # Compute SSIM components at this scale
+            mu1 = _gaussian_filter(img1_fp32, window)
+            mu2 = _gaussian_filter(img2_fp32, window)
 
-        sigma1_sq = _gaussian_filter(img1**2, window) - mu1_sq
-        sigma2_sq = _gaussian_filter(img2**2, window) - mu2_sq
-        sigma12 = _gaussian_filter(img1 * img2, window) - mu1_mu2
+            mu1_sq = mu1**2
+            mu2_sq = mu2**2
+            mu1_mu2 = mu1 * mu2
 
-        # Contrast-structure component
-        cs = (2 * sigma12 + c2) / (sigma1_sq + sigma2_sq + c2)
+            sigma1_sq = _gaussian_filter(img1_fp32**2, window) - mu1_sq
+            sigma2_sq = _gaussian_filter(img2_fp32**2, window) - mu2_sq
+            sigma12 = _gaussian_filter(img1_fp32 * img2_fp32, window) - mu1_mu2
 
-        if i == levels - 1:
-            # Last scale: include luminance component
-            l_component = (2 * mu1_mu2 + c1) / (mu1_sq + mu2_sq + c1)
-            ssim_val = l_component * cs
-            mcs.append(ssim_val.mean())
-        else:
-            # Intermediate scales: only contrast-structure
-            mcs.append(cs.mean())
+            # Contrast-structure component
+            cs = (2 * sigma12 + c2) / (sigma1_sq + sigma2_sq + c2)
 
-            # Downsample for next scale
-            img1 = F.avg_pool2d(img1, kernel_size=2, stride=2)
-            img2 = F.avg_pool2d(img2, kernel_size=2, stride=2)
+            if i == levels - 1:
+                # Last scale: include luminance component
+                l_component = (2 * mu1_mu2 + c1) / (mu1_sq + mu2_sq + c1)
+                ssim_val = l_component * cs
+                mcs.append(ssim_val.mean())
+            else:
+                # Intermediate scales: only contrast-structure
+                mcs.append(cs.mean())
 
-            # Check minimum size - need at least window_size in each dimension
-            if img1.shape[-1] < window_size or img1.shape[-2] < window_size:
-                # Image too small, break early and adjust weights
-                weights_tensor = weights_tensor[: i + 1]
-                weights_tensor = weights_tensor / weights_tensor.sum()
-                break
+                # Downsample for next scale
+                img1_fp32 = F.avg_pool2d(img1_fp32, kernel_size=2, stride=2)
+                img2_fp32 = F.avg_pool2d(img2_fp32, kernel_size=2, stride=2)
 
-    # Combine scales with weighted product
-    # MS-SSIM = ∏(component_j^weight_j)
-    # Use log-space for numerical stability: exp(∑ weight_j * log(component_j))
-    mcs_tensor = torch.stack(mcs)
+                # Check minimum size - need at least window_size in each dimension
+                if img1_fp32.shape[-1] < window_size or img1_fp32.shape[-2] < window_size:
+                    # Image too small, break early and adjust weights
+                    weights_tensor = weights_tensor[: i + 1]
+                    weights_tensor = weights_tensor / weights_tensor.sum()
+                    break
 
-    # Clamp to avoid log(0) and ensure positive values
-    mcs_tensor = torch.clamp(mcs_tensor, min=1e-10, max=1.0)
+        # Combine scales with weighted product
+        # MS-SSIM = ∏(component_j^weight_j)
+        # Use log-space for numerical stability: exp(∑ weight_j * log(component_j))
+        mcs_tensor = torch.stack(mcs)
 
-    # Compute in log space for numerical stability
-    ms_ssim = torch.exp(torch.sum(weights_tensor * torch.log(mcs_tensor)))
+        # Clamp to avoid log(0) and ensure positive values
+        mcs_tensor = torch.clamp(mcs_tensor, min=1e-10, max=1.0)
+
+        # Compute in log space for numerical stability
+        ms_ssim = torch.exp(torch.sum(weights_tensor * torch.log(mcs_tensor)))
 
     return ms_ssim
 
@@ -1225,65 +1243,73 @@ class LossAggregator(nn.Module):
             else:
                 measurements = telescope(inputs, center)
 
-            # Initialize window on first call
-            if self.window is None:
-                channels = measurements.shape[1]
-                self.window = _create_gaussian_window(self.window_size, self.sigma, channels)
+            # AMP-safe SSIM computation: disable autocast and use float32
+            # SSIM requires float32 for numerical stability in convolution operations
+            with torch.cuda.amp.autocast(enabled=False):
+                # Convert to float32 for SSIM computation
+                measurements_fp32 = measurements.float()
+                target_fp32 = target.float()
 
-            # Move window to same device and dtype as measurements
-            self.window = self.window.to(measurements.device).type_as(measurements)
+                # Initialize window on first call
+                if self.window is None:
+                    channels = measurements_fp32.shape[1]
+                    self.window = _create_gaussian_window(self.window_size, self.sigma, channels)
 
-            # Split measurements into old and new
-            measurement_old = measurements[0].unsqueeze(0)  # [1, C, H, W]
-            measurement_new = measurements[1].unsqueeze(0)  # [1, C, H, W]
+                # Move window to same device (always float32 for SSIM)
+                self.window = self.window.to(measurements_fp32.device, dtype=torch.float32)
 
-            # Ensure target tensors have batch dimension
-            target_old = target[0].unsqueeze(0) if target[0].dim() == 3 else target[0]
-            target_new = target[1].unsqueeze(0) if target[1].dim() == 3 else target[1]
+                # Split measurements into old and new
+                measurement_old = measurements_fp32[0].unsqueeze(0)  # [1, C, H, W]
+                measurement_new = measurements_fp32[1].unsqueeze(0)  # [1, C, H, W]
 
-            # Compute SSIM between measurements and targets
-            if self.loss_type == "ssim":
-                # Single-scale SSIM
-                ssim_old = _ssim_single(
-                    measurement_old,
-                    target_old,
-                    self.window,
-                    self.data_range,
-                    use_sample_covariance=False,
-                )
-                ssim_new = _ssim_single(
-                    measurement_new,
-                    target_new,
-                    self.window,
-                    self.data_range,
-                    use_sample_covariance=False,
-                )
-            else:  # ms-ssim
-                # Multi-scale SSIM
-                ssim_old = _ms_ssim(
-                    measurement_old,
-                    target_old,
-                    self.window_size,
-                    self.sigma,
-                    self.data_range,
-                )
-                ssim_new = _ms_ssim(
-                    measurement_new,
-                    target_new,
-                    self.window_size,
-                    self.sigma,
-                    self.data_range,
-                )
+                # Ensure target tensors have batch dimension
+                target_old = target_fp32[0].unsqueeze(0) if target_fp32[0].dim() == 3 else target_fp32[0]
+                target_new = target_fp32[1].unsqueeze(0) if target_fp32[1].dim() == 3 else target_fp32[1]
 
-            # Convert SSIM to DSSIM loss: (1 - SSIM) / 2
-            # Range: [0, 0.5] where 0 = perfect match, 0.5 = maximum dissimilarity
-            loss_old = (1.0 - ssim_old) / 2.0
-            loss_new = (1.0 - ssim_new) / 2.0
+                # Compute SSIM between measurements and targets
+                if self.loss_type == "ssim":
+                    # Single-scale SSIM
+                    ssim_old = _ssim_single(
+                        measurement_old,
+                        target_old,
+                        self.window,
+                        self.data_range,
+                        use_sample_covariance=False,
+                    )
+                    ssim_new = _ssim_single(
+                        measurement_new,
+                        target_new,
+                        self.window,
+                        self.data_range,
+                        use_sample_covariance=False,
+                    )
+                else:  # ms-ssim
+                    # Multi-scale SSIM
+                    ssim_old = _ms_ssim(
+                        measurement_old,
+                        target_old,
+                        self.window_size,
+                        self.sigma,
+                        self.data_range,
+                    )
+                    ssim_new = _ms_ssim(
+                        measurement_new,
+                        target_new,
+                        self.window_size,
+                        self.sigma,
+                        self.data_range,
+                    )
+
+                # Convert SSIM to DSSIM loss: (1 - SSIM) / 2
+                # Range: [0, 0.5] where 0 = perfect match, 0.5 = maximum dissimilarity
+                loss_old = (1.0 - ssim_old) / 2.0
+                loss_new = (1.0 - ssim_new) / 2.0
 
             # Note: No zero-loss normalization for SSIM
             # DSSIM is already bounded and in a reasonable range
 
-            return loss_old, loss_new
+            # Convert back to original dtype for compatibility with AMP
+            return loss_old.to(inputs.dtype), loss_new.to(inputs.dtype)
 
         elif self.loss_type == "composite":
             # Composite loss operates in MEASUREMENT space using strategy pattern

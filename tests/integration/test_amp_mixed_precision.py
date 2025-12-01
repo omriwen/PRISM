@@ -232,18 +232,17 @@ class TestAMPNumericalStability:
         assert relative_diff < 0.5, f"AMP and FP32 losses diverged too much: {relative_diff:.2%}"
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available for memory testing")
+@pytest.mark.gpu
 class TestAMPMemoryReduction:
     """Test memory reduction with AMP (CUDA only)."""
 
-    def test_amp_reduces_memory_usage(self, device):
+    def test_amp_reduces_memory_usage(self, gpu_device):
         """
         Test that AMP reduces memory usage compared to FP32 (generative model).
 
         Note: This test requires CUDA. Expected reduction: 40-50%.
         """
-        if device.type != "cuda":
-            pytest.skip("CUDA required for memory testing")
+        device = gpu_device
 
         # Measure FP32 memory (generative model - no input!)
         torch.cuda.reset_peak_memory_stats()

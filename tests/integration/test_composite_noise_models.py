@@ -357,16 +357,15 @@ class TestCompositeNoiseDeviceHandling:
 
         assert noisy.device == device
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_composite_on_cuda(self):
+    @pytest.mark.gpu
+    def test_composite_on_cuda(self, gpu_device):
         """Test CompositeNoise on CUDA (single sample)."""
-        device = torch.device("cuda")
-        shot = PoissonNoise(snr=40.0).to(device)
-        readout = ReadoutNoise(sigma=0.01).to(device)
-        composite = CompositeNoise([shot, readout]).to(device)
+        shot = PoissonNoise(snr=40.0).to(gpu_device)
+        readout = ReadoutNoise(sigma=0.01).to(gpu_device)
+        composite = CompositeNoise([shot, readout]).to(gpu_device)
 
         # Single sample (SPIDS paradigm)
-        image = torch.ones(1, 1, 64, 64, device=device)
+        image = torch.ones(1, 1, 64, 64, device=gpu_device)
         noisy = composite.add_noise(image)
 
         assert noisy.device.type == "cuda"  # Just check device type, not index

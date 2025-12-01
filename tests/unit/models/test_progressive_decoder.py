@@ -23,12 +23,6 @@ from prism.models.network_config import NetworkConfig
 from prism.models.networks import ProgressiveDecoder
 
 
-@pytest.fixture
-def device():
-    """Get device for testing (CPU only to avoid CUDA dependencies)."""
-    return torch.device("cpu")
-
-
 class TestProgressiveDecoderInitialization:
     """Test basic initialization and parameter computation."""
 
@@ -383,10 +377,11 @@ class TestProgressiveDecoderAMP:
         model = ProgressiveDecoder(input_size=128, output_size=64, use_amp=True)
         assert model.use_amp is True
 
-    def test_forward_with_amp(self, device):
+    @pytest.mark.gpu
+    def test_forward_with_amp(self, gpu_device):
         """Test forward pass with AMP enabled."""
         model = ProgressiveDecoder(input_size=128, output_size=64, use_amp=True)
-        model = model.to(device)
+        model = model.to(gpu_device)
 
         # Should not raise error (AMP handled internally)
         with torch.no_grad():

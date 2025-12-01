@@ -12,6 +12,7 @@ from loguru import logger
 from .callbacks import (
     register_callbacks,
     register_comparison_callbacks,
+    register_profiling_callbacks,
     register_realtime_callbacks,
 )
 from .server import DashboardServer
@@ -176,6 +177,12 @@ def create_app(runs_dir: Path = Path("runs"), port: int = 8050) -> dash.Dash:
                                                         className="custom-tab",
                                                         selected_className="custom-tab--selected",
                                                     ),
+                                                    dcc.Tab(
+                                                        label="⚡ Profiler",
+                                                        value="tab-profiler",
+                                                        className="custom-tab",
+                                                        selected_className="custom-tab--selected",
+                                                    ),
                                                 ],
                                             ),
                                             html.Div(id="tab-content", className="mt-3"),
@@ -277,6 +284,7 @@ def create_app(runs_dir: Path = Path("runs"), port: int = 8050) -> dash.Dash:
     register_callbacks(app, server)
     register_realtime_callbacks(app, server)
     register_comparison_callbacks(app, server)
+    register_profiling_callbacks(app, server)
 
     logger.info(f"Dashboard initialized with runs directory: {runs_dir}")
 

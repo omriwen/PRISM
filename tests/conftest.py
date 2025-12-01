@@ -33,10 +33,48 @@ def sample_real_positive_image():
     return torch.rand(1, 1, 256, 256).abs()
 
 
+@pytest.fixture(params=["cpu", pytest.param("cuda", marks=pytest.mark.gpu)])
+def device(request):
+    """Get test device with CPU/GPU parametrization.
+
+    Tests using this fixture will run on both CPU and CUDA (if available).
+    """
+    device_name = request.param
+    if device_name == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA not available")
+    return torch.device(device_name)
+
+
 @pytest.fixture
-def device():
-    """Get test device (CPU or CUDA if available)."""
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def gpu_device():
+    """Get GPU device only (skip if unavailable).
+
+    Use this for GPU-only tests.
+    """
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available")
+    return torch.device("cuda")
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup_gpu_memory():
+    """Auto-cleanup GPU memory after each test."""
+    yield
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_gpu_for_testing():
+    """Configure GPU settings for testing."""
+    if torch.cuda.is_available():
+        # Disable TF32 for deterministic results
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+
+        # Enable cuDNN benchmarking for performance
+        torch.backends.cudnn.benchmark = True
+    yield
 
 
 @pytest.fixture

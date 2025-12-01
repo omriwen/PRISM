@@ -60,12 +60,6 @@ def disable_training_progress():
 
 
 @pytest.fixture
-def device() -> torch.device:
-    """Get available device (prefer CPU for fast tests)."""
-    return torch.device("cpu")
-
-
-@pytest.fixture
 def small_model(device: torch.device) -> ProgressiveDecoder:
     """Small ProgressiveDecoder for fast testing."""
     model = ProgressiveDecoder(input_size=64, latent_channels=32)

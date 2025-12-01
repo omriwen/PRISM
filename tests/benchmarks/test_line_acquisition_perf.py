@@ -17,10 +17,6 @@ from prism.core.instruments.telescope import Telescope, TelescopeConfig
 from prism.core.line_acquisition import IncoherentLineAcquisition, LineAcquisitionConfig
 
 
-@pytest.fixture
-def device() -> torch.device:
-    """Get available device."""
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 @pytest.fixture
@@ -36,11 +32,11 @@ def telescope_512() -> Telescope:
 
 
 @pytest.fixture
-def field_512(device: torch.device) -> torch.Tensor:
+def field_512(gpu_device: torch.device) -> torch.Tensor:
     """Create a 512x512 k-space field."""
     n = 512
-    ky = torch.linspace(-1, 1, n, device=device)
-    kx = torch.linspace(-1, 1, n, device=device)
+    ky = torch.linspace(-1, 1, n, device=gpu_device)
+    kx = torch.linspace(-1, 1, n, device=gpu_device)
     KY, KX = torch.meshgrid(ky, kx, indexing="ij")  # noqa: N806 (physics notation)
     field_kspace = torch.exp(-((KY**2 + KX**2) / 0.1)) + 0j
     return field_kspace
@@ -90,10 +86,7 @@ class TestBatchedVsLoopPerformance:
     Future optimization: Move mask generation to GPU for true batched speedup.
     """
 
-    @pytest.mark.skipif(
-        not torch.cuda.is_available(),
-        reason="GPU benchmarks require CUDA",
-    )
+    @pytest.mark.gpu
     def test_batched_vs_loop_cuda(
         self,
         telescope_512: Telescope,
@@ -203,10 +196,7 @@ class TestBatchedVsLoopPerformance:
 class TestModesPerformance:
     """Compare performance of accurate vs fast modes."""
 
-    @pytest.mark.skipif(
-        not torch.cuda.is_available(),
-        reason="GPU benchmarks require CUDA",
-    )
+    @pytest.mark.gpu
     def test_accurate_vs_fast_timing(
         self,
         telescope_512: Telescope,
@@ -269,13 +259,10 @@ class TestModesPerformance:
 class TestMemoryEfficiency:
     """Test memory usage with large configurations."""
 
-    @pytest.mark.skipif(
-        not torch.cuda.is_available(),
-        reason="GPU memory tests require CUDA",
-    )
+    @pytest.mark.gpu
     def test_large_config_memory(
         self,
-        device: torch.device,
+        gpu_device: torch.device,
     ) -> None:
         """Test that large configurations don't exceed memory limits."""
         # Large telescope
@@ -289,8 +276,8 @@ class TestMemoryEfficiency:
 
         # Create field
         n = 1024
-        ky = torch.linspace(-1, 1, n, device=device)
-        kx = torch.linspace(-1, 1, n, device=device)
+        ky = torch.linspace(-1, 1, n, device=gpu_device)
+        kx = torch.linspace(-1, 1, n, device=gpu_device)
         KY, KX = torch.meshgrid(ky, kx, indexing="ij")  # noqa: N806 (physics notation)
         field_kspace = torch.exp(-((KY**2 + KX**2) / 0.1)) + 0j
 
@@ -304,8 +291,8 @@ class TestMemoryEfficiency:
         line_acq = IncoherentLineAcquisition(line_config, telescope)
 
         # Long line: 100 pixels → ~100 samples
-        start = torch.tensor([512.0, 462.0], device=device)
-        end = torch.tensor([512.0, 562.0], device=device)
+        start = torch.tensor([512.0, 462.0], device=gpu_device)
+        end = torch.tensor([512.0, 562.0], device=gpu_device)
 
         # This should not OOM
         try:

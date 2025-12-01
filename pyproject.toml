@@ -49,6 +49,7 @@ prism-animate = "prism.cli.animate:main"
 prism-compare = "prism.cli.compare:main"
 prism-inspect = "prism.cli.inspect_pkg:main"
 prism-patterns = "prism.cli.patterns:main"
+prism-profile = "prism.cli.profile:main"
 prism-report = "prism.cli.report:main"
 
 [tool.setuptools.packages.find]
@@ -146,6 +147,26 @@ markers = [
     "notebooks: Jupyter notebook execution tests",
     "slow_e2e: e2e tests taking >60 seconds",
 ]
+filterwarnings = [
+    # Error on warnings in our code (strict mode)
+    "error::DeprecationWarning:prism.*",
+    "error::UserWarning:prism.*",
+
+    # Ignore known third-party warnings
+    "ignore::DeprecationWarning:torch.*",
+    "ignore::UserWarning:matplotlib.*",
+    "ignore::FutureWarning:numpy.*",
+
+    # Specific temporary ignores
+    "ignore:Parameters 'use_leaky'.*:DeprecationWarning",
+    "ignore:star_sample and fermat_sample are deprecated.*:DeprecationWarning",
+    "ignore:torch.compile not available.*:UserWarning",
+    "ignore:Conv-BN fusion skipped.*:UserWarning",
+]
+
+[tool.pytest.xdist]
+dist = "loadgroup"
+numprocesses = "auto"
 
 [tool.coverage.run]
 source = ["prism"]
@@ -190,6 +211,7 @@ dev = [
     "pylint>=4.0.2",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.8.0",
     "radon>=6.0.1",
     "ruff>=0.13.2",
     "sphinx>=8.2.3",

@@ -321,12 +321,12 @@ class TestGrid:
         # Device should be updated
         assert grid_cpu.device == "cpu"
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_to_device_cuda(self, small_grid):
+    @pytest.mark.gpu
+    def test_to_device_cuda(self, small_grid, gpu_device):
         """Test moving grid to CUDA device."""
-        grid_cuda = small_grid.to("cuda")
+        grid_cuda = small_grid.to(gpu_device)
 
-        assert grid_cuda.device == "cuda"
+        assert grid_cuda.device == str(gpu_device)
 
         # Coordinates should be on CUDA
         assert grid_cuda.x.device.type == "cuda"

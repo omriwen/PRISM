@@ -65,10 +65,6 @@ def test_fraunhofer_reversibility(n):
     assert torch.allclose(field, back, rtol=1e-4, atol=1e-6)
 
 
-@pytest.mark.skip(
-    reason="Fresnel energy conservation requires investigation - "
-    "known physics issue in current implementation (see test_fresnel_phase.py)"
-)
 @given(
     n=st.integers(min_value=64, max_value=128),
     dx=st.floats(min_value=1e-6, max_value=1e-4),
@@ -79,9 +75,9 @@ def test_fraunhofer_reversibility(n):
 def test_fresnel_energy_conservation(n, dx, wavelength, distance):
     """Property: Fresnel propagation should approximately conserve energy.
 
-    NOTE: This test is skipped due to known physics issues with the current
-    Fresnel implementation. See tests/unit/core/propagators/test_fresnel_phase.py
-    for details. The API migration to Grid-based interface is complete."""
+    Physical energy is calculated with proper grid weighting: E = Σ|field|² · dx².
+    The Fresnel propagator changes pixel size, so both input and output grids
+    must be accounted for to verify energy conservation."""
     # Skip if parameters are invalid
     assume(distance > wavelength * 100)  # Ensure reasonable distance
 
@@ -102,9 +98,12 @@ def test_fresnel_energy_conservation(n, dx, wavelength, distance):
     # Propagate
     propagated = prop(field)
 
-    # Energy before and after
-    energy_before = (field.abs() ** 2).sum()
-    energy_after = (propagated.abs() ** 2).sum()
+    # Get output grid for proper pixel area weighting
+    grid_out = prop.output_grid
+
+    # Physical energy with proper grid weighting: E = Σ|field|² · dx²
+    energy_before = (field.abs() ** 2).sum() * grid.dx**2
+    energy_after = (propagated.abs() ** 2).sum() * grid_out.dx**2
 
     # Should be approximately conserved (Fresnel is approximate)
     # Allow larger tolerance than Fraunhofer due to approximations

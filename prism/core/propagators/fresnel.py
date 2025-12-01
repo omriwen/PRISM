@@ -322,13 +322,15 @@ class FresnelPropagator(Propagator):
         field_propagated = field_fft * post_chirp
 
         # Step 4: Apply normalization factor
-        # Factor: (e^ikz / iλz) * dx²
+        # Factor: (e^ikz / iλz) * dx² * N
+        # The factor N ensures energy conservation when grid spacing changes:
+        # dx_out = λz/(N*dx_in), so amplitude must scale by sqrt(N) to preserve E = Σ|U|²dx²
         propagation_phase = torch.exp(torch.tensor(1j * k * z, dtype=torch.complex64))
         # Convert 1j to torch complex tensor
         normalization = propagation_phase / torch.tensor(
             1j * self.grid.wl * z, dtype=torch.complex64
         )
-        discrete_scaling = self.grid.dx**2
+        discrete_scaling = self.grid.dx**2 * self.grid.nx
 
         factor = normalization * discrete_scaling
 

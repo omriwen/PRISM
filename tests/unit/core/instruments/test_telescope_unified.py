@@ -428,8 +428,8 @@ class TestTelescopeDeviceTransfer:
         assert telescope_cpu._x.device.type == "cpu"
         assert telescope_cpu._y.device.type == "cpu"
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
-    def test_to_device_cuda(self) -> None:
+    @pytest.mark.gpu
+    def test_to_device_cuda(self, gpu_device) -> None:
         """Test moving telescope to CUDA."""
         config = TelescopeConfig(n_pixels=128)
         telescope = Telescope(config)
@@ -438,7 +438,7 @@ class TestTelescopeDeviceTransfer:
         _ = telescope.x
         _ = telescope.y
 
-        telescope_cuda = telescope.to(torch.device("cuda"))
+        telescope_cuda = telescope.to(gpu_device)
         assert telescope_cuda._x.device.type == "cuda"
         assert telescope_cuda._y.device.type == "cuda"
 

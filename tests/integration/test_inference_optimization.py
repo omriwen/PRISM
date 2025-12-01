@@ -209,16 +209,15 @@ class TestInferenceOptimizationWithAMP:
 class TestInferenceOptimizationSpeed:
     """Test model optimization speed improvements (generative model)."""
 
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="Speed test requires CUDA")
-    def test_inference_speedup(self, device):
+    @pytest.mark.gpu
+    def test_inference_speedup(self, gpu_device):
         """
         Test that prepare_for_inference provides speedup (generative model).
 
         Note: This test requires CUDA and may be skipped on CPU.
         Target: 10-20% speedup.
         """
-        if device.type != "cuda":
-            pytest.skip("Speed test requires CUDA")
+        device = gpu_device
 
         # Create model (generative - no input needed!)
         model = ProgressiveDecoder(input_size=512).to(device)

@@ -434,6 +434,21 @@ def create_main_parser() -> argparse.ArgumentParser:
         help="Port number for dashboard server (default: 8050)",
     )
 
+    # Profiling flags
+    parser.add_argument(
+        "--profile",
+        dest="profile",
+        action="store_true",
+        help="Enable profiling during training",
+    )
+    parser.add_argument(
+        "--profile-output",
+        dest="profile_output",
+        type=str,
+        default=None,
+        help="Profile output path (default: runs/{name}/profile.pt)",
+    )
+
     # Enhanced help flags for specific topics
     parser.add_argument(
         "--help-propagator",
@@ -541,6 +556,7 @@ def create_main_parser() -> argparse.ArgumentParser:
         blur_image=False,
         is_point_source=False,
         dashboard=False,
+        profile=False,
     )
 
     return parser
