@@ -232,7 +232,7 @@ class CircularAperture(Aperture):
         Args:
             x: X coordinates [1, W] or [H, W]
             y: Y coordinates [H, 1] or [H, W]
-            center: [cy, cx] center position
+            center: [cy, cx] center position (list, tuple, or tensor)
 
         Returns:
             Boolean mask [H, W], True inside circle
@@ -241,7 +241,18 @@ class CircularAperture(Aperture):
             >>> aperture = CircularAperture(radius=10)
             >>> mask = aperture.generate(x, y, center=[0, 0])
         """
-        return ((x - center[1]) ** 2 + (y - center[0]) ** 2) <= self.radius**2
+        # Extract center values, ensuring they're on the same device as x/y
+        if isinstance(center, Tensor):
+            # Move center to same device as coordinates if needed
+            if center.device != x.device:
+                center = center.to(x.device)
+            cx = center[1]
+            cy = center[0]
+        else:
+            # List/tuple - use directly (PyTorch handles scalar conversion)
+            cx = center[1]
+            cy = center[0]
+        return ((x - cx) ** 2 + (y - cy) ** 2) <= self.radius**2
 
     def generate_batch(
         self, x: Tensor, y: Tensor, centers: "Union[List[List[float]], Tensor]"

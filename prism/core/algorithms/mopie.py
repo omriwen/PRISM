@@ -438,7 +438,7 @@ class MoPIE(nn.Module):
             return (
                 torch.stack([self.mask(center, self.r_float) for center in self.curr_center], dim=0)
                 .unsqueeze(1)
-                .to(self.obj.dtype)
+                .to(device=self.obj.device, dtype=self.obj.dtype)
             )
         else:
             # Non-fixed probe: shift learnable probe to each sample position
@@ -649,9 +649,13 @@ class MoPIE(nn.Module):
             r = self.r_float
 
         tmp_mask = self.cum_mask_tensor.clone().detach()
+        target_device = tmp_mask.device
         for idx, center in enumerate(centers):
             if not self.single_sample_bool or idx == self.n_Pr // 2:
                 mask = self.mask(center, r)
+                # Ensure mask is on the same device as tmp_mask
+                if mask.device != target_device:
+                    mask = mask.to(target_device)
                 tmp_mask = torch.logical_or(tmp_mask, mask)
         self.cum_mask = tmp_mask
 

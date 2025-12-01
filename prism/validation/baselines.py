@@ -15,7 +15,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -388,7 +388,7 @@ class DiffractionPatterns:
         envelope = np.sinc(slit_width * x_arr / (wavelength * distance)) ** 2
         # Two-slit interference
         interference = np.cos(np.pi * slit_separation * x_arr / (wavelength * distance)) ** 2
-        return envelope * interference
+        return cast(NDArray[np.floating], envelope * interference)
 
     @staticmethod
     def gaussian_beam(
@@ -421,7 +421,7 @@ class DiffractionPatterns:
         # Beam radius at distance z
         w_z = waist * np.sqrt(1 + (distance / z_r) ** 2)
         # Intensity profile
-        return np.exp(-2 * r_arr**2 / w_z**2)
+        return cast(NDArray[np.floating], np.exp(-2 * r_arr**2 / w_z**2))
 
     @staticmethod
     def gaussian_beam_waist(wavelength: float, waist: float, distance: float) -> float:
@@ -578,7 +578,7 @@ class FresnelBaseline:
             Array of zone radii in meters
         """
         n = np.arange(1, n_zones + 1)
-        return np.sqrt(n * wavelength * distance)
+        return cast(NDArray[np.floating], np.sqrt(n * wavelength * distance))
 
     @staticmethod
     def recommended_propagator(fresnel_number: float) -> str:

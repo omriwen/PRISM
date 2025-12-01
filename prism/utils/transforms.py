@@ -21,7 +21,7 @@ Description:
 
 from __future__ import annotations
 
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple, cast
 
 import torch
 from torch import Tensor
@@ -413,7 +413,7 @@ def batched_fft2(fields: Tensor, norm: str = "ortho") -> Tensor:
         ),
         dim=(-2, -1),
     )
-    return result
+    return cast(Tensor, result)
 
 
 def batched_ifft2(spectra: Tensor, norm: str = "ortho") -> Tensor:
@@ -439,4 +439,4 @@ def batched_ifft2(spectra: Tensor, norm: str = "ortho") -> Tensor:
         ),
         dim=(-2, -1),
     )
-    return result
+    return cast(Tensor, result)

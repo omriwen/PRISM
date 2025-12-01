@@ -5,6 +5,7 @@ This example shows how to run a basic SPIDS reconstruction using the Python API
 instead of the command-line interface.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -12,27 +13,54 @@ import torch
 from loguru import logger
 
 from prism.config.constants import um
-from prism.config.objects import get_object_params
-from prism.core.aggregator import LossAgg, TelescopeAgg
-from prism.core.telescope import Telescope
-from prism.core.trainers import PRISMTrainer
-from prism.models.networks import ProgressiveDecoder
-from prism.utils.sampling import fermat_spiral_points
+from prism.config.objects import get_obj_params
+# TODO: The aggregator classes (LossAgg, TelescopeAgg) don't exist in current codebase
+# TODO: The PRISMTrainer API has changed - it now expects MeasurementSystem, not separate aggregators
+# TODO: This example needs to be rewritten to use the current API (see prism.core.runner.PRISMRunner)
+# from prism.core.aggregator import LossAgg, TelescopeAgg  # Module doesn't exist
+# from prism.core.telescope import Telescope
+# from prism.core.trainers import PRISMTrainer
+# from prism.models.networks import ProgressiveDecoder
+# from prism.utils.sampling import fermat_spiral_points
 
 
-def main():
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Basic PRISM usage example")
+    parser.add_argument("--quick", action="store_true", help="Fast mode for testing")
+    parser.add_argument("--no-save", action="store_true", help="Skip saving outputs")
+    return parser.parse_args()
+
+
+def main(args=None):
     """Run basic SPIDS reconstruction."""
+    if args is None:
+        args = parse_args()
+
+    # TODO: This example uses outdated API - needs complete rewrite
+    logger.error("This example is not functional - API has changed")
+    logger.info("Please use the CLI interface (main.py) or see prism.core.runner.PRISMRunner")
+    logger.info("For working examples, see tests/integration/ directory")
+    return None
 
     # Configuration
     obj_name = "europa"
-    image_size = 512  # Smaller for faster demo
-    n_samples = 50
-    max_epochs = 10  # Fewer epochs for demo
+
+    # Configure based on quick mode
+    if args.quick:
+        n_samples = 10
+        max_epochs = 2
+        image_size = 256
+        logger.info("Running in QUICK mode for testing")
+    else:
+        n_samples = 50
+        max_epochs = 10
+        image_size = 512  # Smaller for faster demo
 
     logger.info(f"Starting PRISM reconstruction: {obj_name}")
 
     # 1. Get object parameters
-    obj_params = get_object_params(obj_name)
+    obj_params = get_obj_params(obj_name)
     obj_size = obj_params["size"]
     wavelength = obj_params["wavelength"]
     distance = obj_params["distance"]
@@ -88,10 +116,13 @@ def main():
     # 9. Run progressive training
     logger.info("Starting progressive training...")
 
+    # Configure save directory based on --no-save flag
+    save_dir = None if args.no_save else Path("runs/api_example_basic")
+
     results = trainer.train_progressive(
         sample_points=sample_points,
         aperture_diameter=64,
-        save_dir=Path("runs/api_example_basic"),
+        save_dir=save_dir,
     )
 
     # 10. Report results
@@ -105,7 +136,10 @@ def main():
     logger.info(f"Reconstruction shape: {final_reconstruction.shape}")
 
     # Can now save, visualize, or further process the reconstruction
-    logger.info("Results saved to: runs/api_example_basic/")
+    if args.no_save:
+        logger.info("Output saving skipped (--no-save flag)")
+    else:
+        logger.info("Results saved to: runs/api_example_basic/")
 
     return results
 

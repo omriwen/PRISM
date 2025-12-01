@@ -4,6 +4,7 @@ Custom sampling patterns example.
 Shows how to define and use custom pattern functions for telescope sampling.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -11,10 +12,13 @@ import numpy as np
 import torch
 from loguru import logger
 
-from prism.core.aggregator import LossAgg, TelescopeAgg
-from prism.core.telescope import Telescope
-from prism.core.trainers import PRISMTrainer
-from prism.models.networks import ProgressiveDecoder
+# TODO: The aggregator classes (LossAgg, TelescopeAgg) don't exist in current codebase
+# TODO: The PRISMTrainer API has changed - it now expects MeasurementSystem, not separate aggregators
+# TODO: This example needs to be rewritten to use the current API (see prism.core.runner.PRISMRunner)
+# from prism.core.aggregator import LossAgg, TelescopeAgg  # Module doesn't exist
+# from prism.core.telescope import Telescope
+# from prism.core.trainers import PRISMTrainer
+# from prism.models.networks import ProgressiveDecoder
 
 
 def circular_pattern(n: int, radius: float) -> np.ndarray:
@@ -121,8 +125,28 @@ def random_clustered_pattern(n: int, radius: float, n_clusters: int = 5) -> np.n
     return np.array(points)
 
 
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Compare different sampling patterns for telescope imaging"
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Run in quick mode with reduced parameters for faster testing",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Compare different sampling patterns."""
+    args = parse_args()
+
+    # TODO: This example uses outdated API - needs complete rewrite
+    logger.error("This example is not functional - API has changed")
+    logger.info("Please use the CLI interface (main.py) with --pattern argument")
+    logger.info("For pattern examples, see prism/core/patterns.py and examples/patterns/")
+    return
 
     patterns = {
         "circular": circular_pattern,
@@ -130,10 +154,18 @@ def main():
         "clustered": random_clustered_pattern,
     }
 
-    # Configuration
-    image_size = 512
-    obj_size = 128
-    n_samples = 50
+    # Configuration - adjust based on quick mode
+    if args.quick:
+        image_size = 128
+        obj_size = 64
+        n_samples = 16
+        max_epochs = 2
+        logger.info("Running in QUICK mode with reduced parameters")
+    else:
+        image_size = 512
+        obj_size = 128
+        n_samples = 50
+        max_epochs = 5
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -161,7 +193,7 @@ def main():
             telescope=telescope,
             tel_agg=tel_agg,
             loss_agg=loss_agg,
-            max_epochs=5,  # Quick test
+            max_epochs=max_epochs,
         )
 
         # Train

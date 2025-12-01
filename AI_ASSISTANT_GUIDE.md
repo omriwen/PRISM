@@ -1425,7 +1425,7 @@ ms = MeasurementSystem(microscope, config=ms_config)
 
 ---
 
-## Knowledge Graph for Component Discovery
+## Knowledge Graph for Component Discovery (MANDATORY for Architectural Queries)
 
 PRISM uses a **knowledge graph** stored in `.memory/memory.jsonl` to index components, modules, configs, and their relationships. This enables **10x faster component lookups** compared to grep/glob for architectural queries.
 
@@ -1436,6 +1436,83 @@ PRISM uses a **knowledge graph** stored in `.memory/memory.jsonl` to index compo
 - **Memory file**: `.memory/memory.jsonl` (tracked in git)
 - **Update metadata**: `.memory/.last_update` (tracks last sync commit)
 - **Documentation**: `docs/knowledge-graph-schema.md`
+
+### ALWAYS Use Knowledge Graph First For:
+
+The knowledge graph provides instant answers to architectural queries that would otherwise require multiple grep/glob searches. Use it as your first resort for:
+
+**1. Component Location**: "Where is X defined?"
+
+```bash
+uv run python .memory/query_knowledge_graph.py "where is PRISMRunner"
+```
+
+Returns file path and line number instantly.
+
+**2. Dependency Analysis**: "What uses X?" or "What does X depend on?"
+
+```bash
+uv run python .memory/query_knowledge_graph.py "what uses MeasurementSystem"
+```
+
+Shows all components that depend on or use the target component.
+
+**3. Type-based Discovery**: "List all configs/pipelines/propagators"
+
+```bash
+uv run python .memory/query_knowledge_graph.py "list all Pipeline"
+```
+
+Enumerates all components of a specific type.
+
+**4. Configuration Mapping**: "What configures X?"
+
+```bash
+uv run python .memory/query_knowledge_graph.py "what configures Telescope"
+```
+
+Shows configuration classes and their relationships.
+
+### Use Codebase-Retrieval For:
+
+Switch to grep/glob/read when you need:
+
+- **Implementation details** and code examples
+- **Free-text queries** about algorithms or methods
+- **Current code state** (if graph might be stale)
+- **Queries not covered** by graph relations (e.g., "find all instances of deprecated pattern")
+
+### Hybrid Approach (Recommended):
+
+Combine both tools for maximum efficiency:
+
+1. **Query knowledge graph** to identify relevant components
+2. **Use codebase-retrieval** for implementation details
+3. **Use Read tool** to examine specific files
+
+**Example Workflow:**
+
+```
+User: "How does the training loop work?"
+
+Step 1: Knowledge Graph Query
+  uv run python .memory/query_knowledge_graph.py "list all Pipeline"
+  → Result: PRISMRunner, PRISMTrainer
+
+Step 2: Knowledge Graph Query
+  uv run python .memory/query_knowledge_graph.py "what uses PRISMTrainer"
+  → Result: PRISMRunner (orchestrates training)
+
+Step 3: Codebase-Retrieval
+  Search for "PRISMTrainer training loop implementation"
+  → Identify key methods and logic
+
+Step 4: Read Specific File
+  Read prism/core/trainers.py
+  → Examine detailed implementation
+```
+
+This approach typically reduces discovery time from 2-3 minutes to under 30 seconds.
 
 ### When to Use Knowledge Graph vs Grep/Glob
 

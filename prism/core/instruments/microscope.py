@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 
 from ..grid import Grid
+from ..optics.detector_noise import DetectorNoiseModel
 from ..optics.illumination import (
     IlluminationSource,
     IlluminationSourceType,
@@ -27,7 +28,6 @@ from .four_f_base import FourFSystem
 
 if TYPE_CHECKING:
     from prism.core.optics import MicroscopeForwardModel
-    from prism.models.noise import ShotNoise
 
 
 @dataclass
@@ -43,9 +43,9 @@ class MicroscopeConfig(InstrumentConfig):
             If None, defaults to f_objective (object at focal plane).
         default_illumination_na: Default NA for illumination (if None, uses detection NA)
         forward_model_regime: Forward model selection ('simplified', 'full', 'auto').
-            'simplified' (default): FFT-based 4f model, correct for in-focus imaging.
+            'auto' (default): Auto-selects based on defocus parameter and threshold.
+            'simplified': FFT-based 4f model, correct for in-focus imaging.
             'full': Propagation with lens phases, needed for defocus/z-stacks.
-            'auto': Selects based on defocus parameter (not recommended, may alias).
         defocus_threshold: Threshold for auto regime selection. When defocus parameter
             δ = |working_distance - f_obj| / f_obj exceeds this threshold, FULL model
             is selected. Default 0.01 (1% deviation).
@@ -59,7 +59,7 @@ class MicroscopeConfig(InstrumentConfig):
     tube_lens_focal: float = 0.2  # 200mm typical
     working_distance: Optional[float] = None
     default_illumination_na: Optional[float] = None  # For Köhler illumination
-    forward_model_regime: str = "simplified"  # 'simplified' (default), 'full', or 'auto'
+    forward_model_regime: str = "auto"  # 'auto' (default), 'simplified', or 'full'
     defocus_threshold: float = 0.01  # 1% deviation threshold
     padding_factor: float = 2.0  # FFT padding factor (1.0 = no padding, 2.0 = recommended)
 
@@ -153,7 +153,7 @@ class Microscope(FourFSystem):
         self._device: torch.device = torch.device("cpu")
 
         # Noise model (lazy initialization) - microscope-specific
-        self._noise_model: Optional["ShotNoise"] = None
+        self._noise_model: Optional["DetectorNoiseModel"] = None
 
     @property
     def forward_model(self) -> "MicroscopeForwardModel":
@@ -636,6 +636,8 @@ class Microscope(FourFSystem):
         else:
             # Legacy FFT-only implementation (for backward compatibility)
             # This is equivalent to FourFSystem.forward() for SIMPLIFIED regime
+            assert illum_pupil is not None, "illum_pupil required for legacy forward"
+            assert detect_pupil is not None, "detect_pupil required for legacy forward"
             field_image = self._forward_legacy(field, illum_pupil, detect_pupil)
 
         # Convert to intensity
@@ -690,7 +692,7 @@ class Microscope(FourFSystem):
         # Uncenter spectrum before inverse FFT, then center output
         field_image = torch.fft.ifftshift(torch.fft.ifft2(torch.fft.ifftshift(field_filtered)))
 
-        return field_image
+        return cast(Tensor, field_image)
 
     def _add_detector_noise(self, image: torch.Tensor) -> torch.Tensor:
         """Add realistic detector noise.
@@ -992,16 +994,16 @@ class Microscope(FourFSystem):
         return self._y
 
     @property
-    def noise_model(self) -> Optional["ShotNoise"]:
+    def noise_model(self) -> Optional["DetectorNoiseModel"]:
         """Get noise model for SPIDS measurements.
 
         Returns:
-            ShotNoise instance if configured, None otherwise.
+            DetectorNoiseModel instance if configured, None otherwise.
         """
         return self._noise_model
 
     @noise_model.setter
-    def noise_model(self, model: Optional["ShotNoise"]) -> None:
+    def noise_model(self, model: Optional["DetectorNoiseModel"]) -> None:
         """Set noise model for SPIDS measurements."""
         self._noise_model = model
 

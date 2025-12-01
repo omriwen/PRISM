@@ -47,7 +47,7 @@ dependencies = [
 [project.scripts]
 prism-animate = "prism.cli.animate:main"
 prism-compare = "prism.cli.compare:main"
-prism-inspect = "prism.cli.inspect:main"
+prism-inspect = "prism.cli.inspect_pkg:main"
 prism-patterns = "prism.cli.patterns:main"
 prism-report = "prism.cli.report:main"
 
@@ -142,6 +142,9 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "regression: marks tests as regression tests that compare against golden outputs",
+    "e2e: end-to-end integration tests",
+    "notebooks: Jupyter notebook execution tests",
+    "slow_e2e: e2e tests taking >60 seconds",
 ]
 
 [tool.coverage.run]

@@ -1,52 +1,51 @@
-# PRISM Knowledge Graph Memory
+# PRISM Knowledge Graph
 
-This directory contains the persistent knowledge graph for the PRISM project, used by AI agents for fast navigation and component discovery.
+Knowledge graph for AI agent navigation and component discovery.
 
 ## Files
 
-- `memory.jsonl` - Knowledge graph data (JSONL format, used by MCP Memory server)
-- `.last_update` - Metadata about the last graph update (git commit hash, timestamp)
+- `memory.jsonl` - Graph data (JSONL format, MCP Memory server compatible)
+- `.last_update` - Update metadata (commit hash, timestamp)
+- `update_knowledge_graph.py` - AST-based graph updater
+- `validate_graph.py` - Sync validation for CI
+- `test_queries.py` - Graph validation tests
 
-## Purpose
+## AI Agent Usage
 
-The knowledge graph provides **10x faster component lookups** compared to grep/glob for:
-- Architectural queries: "What uses Telescope?", "Where is component X?"
-- Dependency analysis: "What does MeasurementSystem depend on?"
-- Type-based queries: "Show all pipelines", "List all configs"
+AI agents query via MCP memory tools:
+```python
+mcp__memory__search_nodes("Telescope")
+mcp__memory__open_nodes(["Telescope", "TelescopeConfig"])
+mcp__memory__read_graph()
+```
+
+## Graph Contents
+
+| Type | Count | Examples |
+|------|-------|----------|
+| Classes | 21 | Telescope, Microscope, MeasurementSystem |
+| Configs | 9 | TelescopeConfig, MicroscopeConfig |
+| Modules | 12 | prism.core, prism.models |
+| Pipelines | 2 | PRISMRunner, PRISMTrainer |
+| Propagators | 4 | FresnelPropagator, FraunhoferPropagator |
+
+**Total: 60 entities, 60 relations**
+
+## Maintenance
+
+Update after modifying `prism/` Python files:
+```bash
+uv run python .memory/update_knowledge_graph.py --full
+```
+
+Validate:
+```bash
+uv run python .memory/test_queries.py
+uv run python .memory/validate_graph.py
+```
 
 ## Schema
-
-See [docs/knowledge-graph-schema.md](../docs/knowledge-graph-schema.md) for the full schema.
 
 **Entity Types:** Module, Class, Function, Protocol, Config, Pipeline, Propagator
 
 **Relation Types:** defines, uses, inherits_from, implements, configures, orchestrates, depends_on
-
-## AI Agent Usage
-
-AI agents should query this graph using MCP memory tools:
-```python
-# Search for components
-mcp__memory__search_nodes("Telescope")
-
-# Get detailed info
-mcp__memory__open_nodes(["Telescope", "TelescopeConfig"])
-
-# Read entire graph
-mcp__memory__read_graph()
-```
-
-## Updates
-
-Run the update command when the codebase changes:
-```bash
-# Via slash command (recommended)
-/update-knowledge-graph
-
-# Or manually
-python tools/update_knowledge_graph.py --incremental
-```
-
-## Tracked in Git
-
-This directory is intentionally tracked in git so the knowledge graph is available to anyone pulling the repo. The MCP memory server reads from `memory.jsonl` at the configured path.

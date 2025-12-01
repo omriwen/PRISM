@@ -389,7 +389,7 @@ class USAF1951Target(Target):
         element: int,
         center: Tuple[float, float],
         orientation: str = "horizontal",
-        mask: torch.Tensor = None,
+        mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Generate single 3-bar element.
 

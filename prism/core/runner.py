@@ -255,14 +255,15 @@ class PRISMRunner:
         )
         self.args.samples_per_line_meas = samples_per_line_meas
 
-        # Determine propagator (for logging; the unified Telescope uses internal defaults)
+        # Select propagator based on config
+        selected_propagator = None
         if self.config.telescope.propagator_method is not None:
             from prism.config.constants import fresnel_number as calculate_fresnel_number
             from prism.core.propagators import select_propagator
 
-            # Calculate aperture size (detector physical size)
-            # For propagation, we need the physical detector aperture, not object plane FOV
-            aperture_size = self.args.image_size * self.args.dxf
+            # Calculate aperture size (object plane FOV)
+            # For SPIDS/telescope, FOV is determined by the object plane extent
+            aperture_size = self.args.image_size * self.args.dx
 
             # Calculate Fresnel number for logging
             fresnel_num = calculate_fresnel_number(
@@ -272,8 +273,8 @@ class PRISMRunner:
             # Get propagator method
             method = self.config.telescope.propagator_method
 
-            # Select propagator based on config (for logging purposes)
-            _propagator = select_propagator(  # noqa: F841
+            # Select propagator based on config
+            selected_propagator = select_propagator(
                 wavelength=self.args.wavelength,
                 obj_distance=self.args.obj_distance,
                 fov=aperture_size,
@@ -292,17 +293,17 @@ class PRISMRunner:
             from prism.config.constants import fresnel_number as calculate_fresnel_number
             from prism.core.propagators import select_propagator
 
-            # Calculate aperture size (detector physical size, not object plane FOV)
-            # For Fresnel number, we need the detector aperture size
-            aperture_size = self.args.image_size * self.args.dxf
+            # Calculate aperture size (object plane FOV)
+            # For SPIDS/telescope, FOV is determined by the object plane extent
+            aperture_size = self.args.image_size * self.args.dx
 
             # Calculate Fresnel number for logging
             fresnel_num = calculate_fresnel_number(
                 aperture_size, self.args.obj_distance, self.args.wavelength
             )
 
-            # Auto-select propagator based on physics (for logging)
-            _propagator = select_propagator(  # noqa: F841
+            # Auto-select propagator based on physics
+            selected_propagator = select_propagator(
                 wavelength=self.args.wavelength,
                 obj_distance=self.args.obj_distance,
                 fov=aperture_size,
@@ -325,7 +326,12 @@ class PRISMRunner:
             wavelength=self.args.wavelength,
             pixel_size=self.args.dxf,
         )
+        assert self.device is not None, "Device must be set before creating telescope"
         self.telescope = Telescope(telescope_config).to(self.device)
+
+        # Inject the selected propagator into the telescope
+        if selected_propagator is not None:
+            self.telescope._propagator = selected_propagator
 
         # Create line acquisition module if using line mode
         line_acquisition = None
@@ -352,6 +358,7 @@ class PRISMRunner:
             )
 
         # Create measurement system wrapping the telescope
+        assert self.device is not None, "Device must be set before creating measurement system"
         self.measurement_system = MeasurementSystem(
             self.telescope, line_acquisition=line_acquisition
         ).to(self.device)
@@ -438,9 +445,13 @@ class PRISMRunner:
         with torch.no_grad():
             if self.args.initialization_target == "measurement":
                 # Get measurement through new unified API
-                measurement = self.measurement_system.get_measurements(
-                    self.image, center.tolist() if hasattr(center, "tolist") else [center]
-                )
+                # Convert center to list format expected by get_measurements
+                center_list: list[list[float]] = [
+                    list(center.tolist())
+                    if hasattr(center, "tolist")
+                    else [float(x) for x in center]
+                ]
+                measurement = self.measurement_system.get_measurements(self.image, center_list)
             elif self.args.initialization_target == "circle":
                 # Generate circular aperture mask
                 measurement = (
@@ -468,13 +479,14 @@ class PRISMRunner:
                 for i in range(0, len(self.sample_centers), batch_size):
                     batch_centers = self.sample_centers[i : i + batch_size]
                     for center_pos in batch_centers:
-                        center_list = (
-                            center_pos.tolist()
+                        # Convert center to list format expected by get_measurements
+                        center_coords: list[float] = (
+                            list(center_pos.tolist())
                             if hasattr(center_pos, "tolist")
-                            else list(center_pos)
+                            else [float(x) for x in center_pos]
                         )
                         meas = self.measurement_system.get_measurements(
-                            self.image, [center_list], add_noise=False
+                            self.image, [center_coords], add_noise=False
                         )
                         all_measurements.append(meas)
                 # Average all measurements

@@ -572,5 +572,11 @@ def create_mopie_parser() -> argparse.ArgumentParser:
     mopie_group.add_argument(
         "--beta", type=float, default=0.1, help="Mo-PIE probe update parameter"
     )
+    mopie_group.add_argument(
+        "--lr_obj", type=float, default=1.0, help="Mo-PIE object learning rate"
+    )
+    mopie_group.add_argument(
+        "--lr_probe", type=float, default=1.0, help="Mo-PIE probe learning rate"
+    )
 
     return parser

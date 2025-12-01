@@ -5,6 +5,7 @@ Shows how to run multiple experiments programmatically with
 different configurations.
 """
 
+import argparse
 import json
 import sys
 from dataclasses import asdict, dataclass
@@ -13,12 +14,15 @@ from pathlib import Path
 import torch
 from loguru import logger
 
-from prism.config.objects import get_object_params
-from prism.core.aggregator import LossAgg, TelescopeAgg
-from prism.core.telescope import Telescope
-from prism.core.trainers import PRISMTrainer
-from prism.models.networks import ProgressiveDecoder
-from prism.utils.sampling import fermat_spiral_points
+from prism.config.objects import get_obj_params
+# TODO: The aggregator classes (LossAgg, TelescopeAgg) don't exist in current codebase
+# TODO: The PRISMTrainer API has changed - it now expects MeasurementSystem, not separate aggregators
+# TODO: This example needs to be rewritten to use the current API (see prism.core.runner.PRISMRunner)
+# from prism.core.aggregator import LossAgg, TelescopeAgg  # Module doesn't exist
+# from prism.core.telescope import Telescope
+# from prism.core.trainers import PRISMTrainer
+# from prism.models.networks import ProgressiveDecoder
+# from prism.utils.sampling import fermat_spiral_points
 
 
 @dataclass
@@ -33,7 +37,20 @@ class ExperimentConfig:
     aperture_diameter: int
 
 
-def run_experiment(config: ExperimentConfig) -> dict:
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Run batch experiments with optional quick mode for testing"
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Run in quick mode (1 experiment, reduced samples/epochs/image size)",
+    )
+    return parser.parse_args()
+
+
+def run_experiment(config: ExperimentConfig, image_size: int = 512) -> dict:
     """
     Run a single experiment with given configuration.
 
@@ -47,14 +64,19 @@ def run_experiment(config: ExperimentConfig) -> dict:
     dict
         Results including losses, coverage, etc.
     """
+    logger.error("This function is not functional - API has changed")
+    logger.info("Please use the CLI interface (main.py) for batch experiments")
+    logger.info("See tests/integration/ directory for working examples")
+    return {}
+
     logger.info(f"\n{'=' * 60}")
     logger.info(f"Running experiment: {config.name}")
     logger.info(f"{'=' * 60}\n")
     logger.info(f"Config: {asdict(config)}")
+    logger.info(f"Image size: {image_size}")
 
     # Setup
-    image_size = 512
-    obj_params = get_object_params(config.obj_name)
+    obj_params = get_obj_params(config.obj_name)
     obj_size = obj_params["size"]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -109,49 +131,71 @@ def run_experiment(config: ExperimentConfig) -> dict:
 
 def main():
     """Run batch of experiments."""
+    args = parse_args()
 
-    # Define experiments
-    experiments = [
-        ExperimentConfig(
-            name="baseline",
-            obj_name="europa",
-            n_samples=50,
-            max_epochs=10,
-            learning_rate=0.001,
-            aperture_diameter=64,
-        ),
-        ExperimentConfig(
-            name="more_samples",
-            obj_name="europa",
-            n_samples=100,
-            max_epochs=10,
-            learning_rate=0.001,
-            aperture_diameter=64,
-        ),
-        ExperimentConfig(
-            name="higher_lr",
-            obj_name="europa",
-            n_samples=50,
-            max_epochs=10,
-            learning_rate=0.01,  # 10x higher
-            aperture_diameter=64,
-        ),
-        ExperimentConfig(
-            name="larger_aperture",
-            obj_name="europa",
-            n_samples=50,
-            max_epochs=10,
-            learning_rate=0.001,
-            aperture_diameter=128,  # 2x larger
-        ),
-    ]
+    # TODO: This example uses outdated API - needs complete rewrite
+    logger.error("This example is not functional - API has changed")
+    logger.info("Please use the CLI interface (main.py) for batch experiments")
+    logger.info("See tests/integration/ directory for working examples")
+    return
+
+    # Configure based on quick mode
+    if args.quick:
+        logger.info("Running in QUICK mode (reduced experiments and parameters)")
+        image_size = 256  # Half resolution
+        experiments = [
+            ExperimentConfig(
+                name="quick_baseline",
+                obj_name="europa",
+                n_samples=10,  # Much fewer samples
+                max_epochs=2,  # Fewer epochs
+                learning_rate=0.001,
+                aperture_diameter=64,
+            ),
+        ]
+    else:
+        image_size = 512
+        experiments = [
+            ExperimentConfig(
+                name="baseline",
+                obj_name="europa",
+                n_samples=50,
+                max_epochs=10,
+                learning_rate=0.001,
+                aperture_diameter=64,
+            ),
+            ExperimentConfig(
+                name="more_samples",
+                obj_name="europa",
+                n_samples=100,
+                max_epochs=10,
+                learning_rate=0.001,
+                aperture_diameter=64,
+            ),
+            ExperimentConfig(
+                name="higher_lr",
+                obj_name="europa",
+                n_samples=50,
+                max_epochs=10,
+                learning_rate=0.01,  # 10x higher
+                aperture_diameter=64,
+            ),
+            ExperimentConfig(
+                name="larger_aperture",
+                obj_name="europa",
+                n_samples=50,
+                max_epochs=10,
+                learning_rate=0.001,
+                aperture_diameter=128,  # 2x larger
+            ),
+        ]
 
     # Run all experiments
     all_results = []
 
     for config in experiments:
         try:
-            results = run_experiment(config)
+            results = run_experiment(config, image_size=image_size)
             all_results.append(results)
         except Exception as e:
             logger.error(f"Experiment {config.name} failed: {e}")

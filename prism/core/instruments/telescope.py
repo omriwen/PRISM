@@ -17,7 +17,7 @@ which wraps any Instrument instance.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import torch
 from torch import Tensor
@@ -27,6 +27,7 @@ from prism.utils.transforms import fft
 
 from ..apertures import Aperture, CircularAperture, create_aperture
 from ..grid import Grid
+from ..optics.detector_noise import DetectorNoiseModel
 from ..propagators import FraunhoferPropagator
 from ..propagators.base import CoherenceMode, Propagator
 from .base import InstrumentConfig
@@ -147,6 +148,29 @@ class Telescope(FourFSystem):
         self._x: Optional[Tensor] = None
         self._y: Optional[Tensor] = None
         self._device: torch.device = torch.device("cpu")
+
+    def _apply(self, fn: Callable[[Tensor], Tensor]) -> "Telescope":
+        """Override _apply to track device changes for coordinate grids.
+
+        This is called by .to(), .cuda(), .cpu() etc. We use it to update
+        the _device attribute so that lazily-created coordinate grids
+        will be on the correct device.
+        """
+        # Call parent _apply first
+        result = super()._apply(fn)
+
+        # Detect device change by applying fn to a dummy tensor
+        dummy = torch.zeros(1)
+        new_device = fn(dummy).device
+
+        # Update device tracking and reset cached coordinates
+        if self._device != new_device:
+            self._device = new_device
+            # Reset cached coordinates so they'll be recreated on correct device
+            self._x = None
+            self._y = None
+
+        return result
 
     @staticmethod
     def _create_noise_model_from_config(config: TelescopeConfig) -> Optional[Any]:
@@ -361,11 +385,12 @@ class Telescope(FourFSystem):
         return output
 
     @property
-    def noise_model(self) -> Optional[ShotNoise]:
+    def noise_model(self) -> Optional[DetectorNoiseModel]:
         """Access to noise model for backward compatibility.
 
         Returns:
-            ShotNoise instance if configured, None otherwise
+            DetectorNoiseModel instance if configured, None otherwise.
+            Currently returns ShotNoise, which is a subclass of DetectorNoiseModel.
         """
         return self._noise_model
 

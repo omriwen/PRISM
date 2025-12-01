@@ -22,8 +22,8 @@ def telescope(device):
     config = TelescopeConfig(
         n_pixels=128,
         aperture_radius_pixels=15.0,
-        pixel_size_um=1.0,
-        wavelength_um=0.5,
+        pixel_size=1.0e-6,  # 1.0 µm in meters (SI units)
+        wavelength=0.5e-6,  # 0.5 µm in meters (SI units)
     )
     return Telescope(config).to(device)
 
@@ -77,8 +77,8 @@ class TestMeasurementSystemLineMode:
             line_endpoints=(start, end),
         )
 
-        # Should return [2, H, W]
-        assert measurement.shape == (2, 128, 128)
+        # Should return [2, 1, H, W] with channel dimension
+        assert measurement.shape == (2, 1, 128, 128)
 
         # First sample: both measurements should be identical
         assert torch.allclose(measurement[0], measurement[1])
@@ -108,8 +108,8 @@ class TestMeasurementSystemLineMode:
             line_endpoints=(start2, end2),
         )
 
-        # Should return [2, H, W]
-        assert meas2.shape == (2, 128, 128)
+        # Should return [2, 1, H, W] with channel dimension
+        assert meas2.shape == (2, 1, 128, 128)
 
         # Second sample: measurements should be different
         # meas2[0] = reconstruction through cum_mask
@@ -182,8 +182,8 @@ class TestMeasurementSystemLineMode:
         centers = [[30.0, 40.0]]
         measurement = measurement_system.measure(test_field, centers=centers)
 
-        # Should return [2, H, W]
-        assert measurement.shape == (2, 128, 128)
+        # Should return [2, 1, H, W] with channel dimension
+        assert measurement.shape == (2, 1, 128, 128)
 
     def test_add_mask_point_mode_still_works(self, measurement_system):
         """Test that add_mask in point mode still works."""
@@ -212,7 +212,7 @@ class TestMeasurementSystemLineMode:
         )
 
         # Should still return valid shape
-        assert meas_with_noise.shape == (2, 128, 128)
+        assert meas_with_noise.shape == (2, 1, 128, 128)
 
         # Values should be finite
         assert torch.isfinite(meas_with_noise).all()
@@ -228,7 +228,7 @@ class TestMeasurementSystemLineMode:
         end1 = torch.tensor([40.0, 60.0], device=device)
 
         meas1 = measurement_system.measure(ground_truth, None, line_endpoints=(start1, end1))
-        assert meas1.shape == (2, 128, 128)
+        assert meas1.shape == (2, 1, 128, 128)
 
         measurement_system.add_mask(line_endpoints=(start1, end1))
         assert measurement_system.sample_count == 1
@@ -240,7 +240,7 @@ class TestMeasurementSystemLineMode:
         meas2 = measurement_system.measure(
             ground_truth, reconstruction, line_endpoints=(start2, end2)
         )
-        assert meas2.shape == (2, 128, 128)
+        assert meas2.shape == (2, 1, 128, 128)
 
         measurement_system.add_mask(line_endpoints=(start2, end2))
         assert measurement_system.sample_count == 2
@@ -254,7 +254,7 @@ class TestMeasurementSystemLineMode:
         measurement = measurement_system.measure(test_field, centers=None)
 
         # Should work and return valid measurement
-        assert measurement.shape == (2, 128, 128)
+        assert measurement.shape == (2, 1, 128, 128)
 
     def test_add_mask_requires_either_centers_or_endpoints(self, measurement_system):
         """Test that add_mask requires either centers or line_endpoints."""
@@ -283,7 +283,7 @@ class TestMeasurementSystemLineModeModes:
         measurement = ms.measure(field, line_endpoints=(start, end))
 
         # Should return valid measurement
-        assert measurement.shape == (2, 128, 128)
+        assert measurement.shape == (2, 1, 128, 128)
         assert torch.isfinite(measurement).all()
 
     def test_accurate_mode_integration(self, telescope, device):
@@ -303,7 +303,7 @@ class TestMeasurementSystemLineModeModes:
         measurement = ms.measure(field, line_endpoints=(start, end))
 
         # Should return valid measurement
-        assert measurement.shape == (2, 128, 128)
+        assert measurement.shape == (2, 1, 128, 128)
         assert torch.isfinite(measurement).all()
 
 

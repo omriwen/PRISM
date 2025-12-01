@@ -265,7 +265,9 @@ class FresnelPropagator(Propagator):
             >>> output_field = prop(input_field)
             >>> print(f"Output pixel size: {prop.output_grid.dx:.2e} m")
         """
-        dx_out = (self.grid.wl * abs(self.distance.item())) / (self.grid.nx * self.grid.dx)
+        dx_out = (self.grid.wl * abs(self.distance.item())) / (  # type: ignore[operator]  # Tensor.item() is valid
+            self.grid.nx * self.grid.dx
+        )
 
         return Grid(
             nx=self.grid.nx,
@@ -304,7 +306,7 @@ class FresnelPropagator(Propagator):
         """
         # Get direction
         direction = kwargs.get("direction", "forward")
-        z = self.distance.item() if direction == "forward" else -self.distance.item()
+        z = self.distance.item() if direction == "forward" else -self.distance.item()  # type: ignore[operator]  # Tensor.item() is valid
 
         k = 2 * torch.pi / self.grid.wl
 

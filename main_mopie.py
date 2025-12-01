@@ -441,7 +441,8 @@ def main() -> None:
         )
 
         # Save figures
-        current_reconstruction = crop_image(model.Og, args.obj_size).abs()
+        # Note: Pass full-sized tensors to plotter - it will handle cropping internally
+        current_reconstruction = model.Og.abs()
 
         # Create telescope using unified API for visualization
         telescope_config = TelescopeConfig(
@@ -467,7 +468,8 @@ def main() -> None:
         # Create MeasurementSystem for synthetic aperture visualization
         measurement_system = MeasurementSystem(telescope).to(device)
         # Populate cum_mask with all sample centers for visualization
-        measurement_system.add_mask(sample_centers.tolist())
+        # Note: sample_centers has shape (n_samples, n_points, 2), squeeze to (n_samples, 2)
+        measurement_system.add_mask(sample_centers.squeeze(1).tolist())
 
         with SyntheticAperturePlotter(PUBLICATION) as plotter:
             plotter.plot(

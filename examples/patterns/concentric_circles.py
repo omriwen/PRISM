@@ -19,9 +19,9 @@ def generate_pattern(config):
 
     # Denser sampling in center
     samples_per_circle = [30, 25, 20, 15, 10]
-    assert (
-        sum(samples_per_circle) == config.n_samples
-    ), f"samples_per_circle must sum to n_samples ({config.n_samples})"
+    assert sum(samples_per_circle) == config.n_samples, (
+        f"samples_per_circle must sum to n_samples ({config.n_samples})"
+    )
 
     r_max = config.roi_diameter / 2
     positions = []

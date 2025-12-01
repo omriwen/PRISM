@@ -239,10 +239,12 @@ def test_runner_no_propagator_method_backward_compatibility(base_config, mock_ar
     # Create model and telescope
     runner.create_model_and_telescope()
 
-    # Verify propagator was created (FreeSpacePropagator/FresnelPropagator)
+    # Verify propagator was created
+    # With default test parameters (obj_distance=1e6 m, far field),
+    # auto-selection should choose Fraunhofer (F ~ 5e-5 << 0.1)
     assert runner.telescope is not None
     assert runner.telescope.propagator is not None
-    assert isinstance(runner.telescope.propagator, FresnelPropagator)
+    assert isinstance(runner.telescope.propagator, FraunhoferPropagator)
 
 
 def test_runner_europa_scenario(base_config, mock_args):

@@ -304,7 +304,8 @@ class TestMicroscopeLegacyCompatibility:
 
         When object is at the focal plane and SIMPLIFIED regime is selected,
         the unified forward model should produce identical results to the
-        legacy FFT-only implementation.
+        legacy FFT-only implementation. Note: padding must be disabled for
+        this comparison since the legacy model doesn't use padding.
         """
         f_obj = 0.2 / 100.0  # 2mm
 
@@ -315,6 +316,7 @@ class TestMicroscopeLegacyCompatibility:
             n_pixels=128,
             pixel_size=6.5e-6,
             working_distance=f_obj,  # Exactly at focus
+            padding_factor=1.0,  # Disable padding to match legacy model
         )
         mic = Microscope(config)
 

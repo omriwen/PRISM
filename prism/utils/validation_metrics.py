@@ -161,8 +161,10 @@ def compute_mtf50(
 
     # Extract window around edge (avoid boundary effects)
     window_size = min(64, len(esf) // 4)
-    start = max(0, edge_center - window_size)
-    end = min(len(esf), edge_center + window_size)
+    start_idx = max(0, int(edge_center) - window_size)
+    end_idx = min(len(esf), int(edge_center) + window_size)
+    start = int(start_idx)
+    end = int(end_idx)
     esf_windowed = esf[start:end]
 
     # Ensure ESF goes from low to high

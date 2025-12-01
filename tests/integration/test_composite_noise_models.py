@@ -146,12 +146,12 @@ class TestCompositeNoiseStatistics:
 
         assert "noise_type" in stats
         assert stats["noise_type"] == "composite"
-        assert "noise_sources" in stats
-        assert len(stats["noise_sources"]) == 2
+        assert "components" in stats
+        assert len(stats["components"]) == 2
 
         # Check individual noise source stats
-        assert stats["noise_sources"][0]["noise_type"] == "poisson"
-        assert stats["noise_sources"][1]["noise_type"] == "readout"
+        assert stats["components"][0]["noise_type"] == "poisson"
+        assert stats["components"][1]["noise_type"] == "readout"
 
     def test_get_stats_correct_parameters(self):
         """Test that get_stats contains correct parameters."""
@@ -162,11 +162,11 @@ class TestCompositeNoiseStatistics:
         stats = composite.get_stats()
 
         # Check Poisson noise stats
-        poisson_stats = stats["noise_sources"][0]
+        poisson_stats = stats["components"][0]
         assert poisson_stats["snr_db"] == 45.0
 
         # Check readout noise stats
-        readout_stats = stats["noise_sources"][1]
+        readout_stats = stats["components"][1]
         assert readout_stats["sigma"] == 0.02
 
 
@@ -369,7 +369,7 @@ class TestCompositeNoiseDeviceHandling:
         image = torch.ones(1, 1, 64, 64, device=device)
         noisy = composite.add_noise(image)
 
-        assert noisy.device == device
+        assert noisy.device.type == "cuda"  # Just check device type, not index
 
 
 class TestCompositeNoiseEdgeCases:

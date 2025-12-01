@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 import torch
 from torch import Tensor
@@ -470,7 +470,7 @@ class FourFSystem(Instrument, ABC):
             detection_pupil=detect_pupil,
             return_complex=False,  # Return intensity
         )
-        return output
+        return cast(Tensor, output)
 
     def _forward_incoherent(
         self,
@@ -540,7 +540,7 @@ class FourFSystem(Instrument, ABC):
         # Propagate intensity through OTF
         output = otf_propagator(intensity)
 
-        return output
+        return cast(Tensor, output)
 
     def _forward_partially_coherent(
         self,
@@ -737,7 +737,7 @@ class FourFSystem(Instrument, ABC):
             dim=(-2, -1),
         )
 
-        return field_kspace
+        return cast(Tensor, field_kspace)
 
     def propagate_to_spatial(self, field_kspace: Tensor) -> Tensor:
         """Propagate k-space field back to spatial domain and compute intensity.

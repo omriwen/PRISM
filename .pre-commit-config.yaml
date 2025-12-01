@@ -27,3 +27,14 @@ repos:
         additional_dependencies: [types-PyYAML]
         args: [--ignore-missing-imports, --show-error-codes]
         exclude: ^(examples/(baselines|python_api)/|docs/examples/)
+
+  - repo: local
+    hooks:
+      - id: knowledge-graph-check
+        name: Knowledge Graph Sync Check
+        entry: uv run python .memory/validate_graph.py
+        language: system
+        files: ^prism/.*\.py$
+        pass_filenames: false
+        stages: [commit]
+        verbose: true

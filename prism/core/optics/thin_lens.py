@@ -151,7 +151,7 @@ class ThinLens(nn.Module):
         Tensor
             Field after lens transformation.
         """
-        return field * self.pupil * self.lens_phase
+        return field * self.pupil * self.lens_phase  # type: ignore[operator]  # lens_phase is Tensor at runtime
 
     @property
     def output_grid(self) -> Grid:

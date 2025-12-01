@@ -67,7 +67,7 @@ class TestSSIMConfigurationIntegration:
         config = PRISMConfig()
         config.training.loss_type = "invalid"  # type: ignore[assignment]
 
-        with pytest.raises(ValueError, match="loss_type must be one of"):
+        with pytest.raises(ValueError, match="Invalid loss_type"):
             config.validate()
 
     def test_training_config_creation(self):

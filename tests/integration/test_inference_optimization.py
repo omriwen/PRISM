@@ -151,30 +151,25 @@ class TestInferenceOptimizationWithGradients:
         # Forward pass (generative - no input!)
         output = simple_network()  # No input!
 
-        # Try to compute loss and backward (should not compute gradients)
+        # Try to compute loss and backward
+        # This SHOULD raise RuntimeError because parameters are frozen (requires_grad=False)
         loss = output.sum()
-        loss.backward()
 
-        # Parameters should have no gradients (or None)
-        for param in simple_network.parameters():
-            assert param.grad is None or torch.all(param.grad == 0)
+        with pytest.raises(RuntimeError, match="does not require grad|leaf Variable that requires grad"):
+            loss.backward()
 
     def test_training_disabled_after_optimization(self, simple_network):
         """Test that training operations are disabled after optimization (generative model)."""
         simple_network.prepare_for_inference()
 
-        # Try to train - should not affect parameters
-        initial_params = [p.clone() for p in simple_network.parameters()]
-
+        # Try to train - backward should fail because parameters are frozen
         optimizer = torch.optim.Adam(simple_network.parameters(), lr=0.001)
         output = simple_network()  # No input!
         loss = output.sum()
-        loss.backward()
-        optimizer.step()
 
-        # Parameters should be unchanged (frozen)
-        for initial, current in zip(initial_params, simple_network.parameters()):
-            assert torch.allclose(initial, current)
+        # This should raise because parameters don't require gradients
+        with pytest.raises(RuntimeError, match="does not require grad|leaf Variable that requires grad"):
+            loss.backward()
 
 
 class TestInferenceOptimizationWithAMP:
@@ -268,7 +263,7 @@ class TestInferenceOptimizationScenarios:
     def test_optimize_after_training(self, device):
         """Test typical workflow: SPIDS training then optimize for final reconstruction."""
         model = ProgressiveDecoder(input_size=256).to(device)
-        target = torch.randn(1, 1, 128, 128, device=device)
+        target = torch.randn(1, 1, 256, 256, device=device)
 
         # SPIDS training phase (generative - no input!)
         model.train()

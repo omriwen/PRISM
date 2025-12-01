@@ -145,3 +145,13 @@ GEMINIIIIII.md
 # Ignore if recreated locally for development/testing
 legacy/
 docs/api/_build/
+
+# Internal planning and reports
+docs/plans/
+*_REPORT.md
+
+# Knowledge graph (local development tool)
+.memory/
+
+# Tutorial generated reports
+examples/notebooks/tutorial_reports/

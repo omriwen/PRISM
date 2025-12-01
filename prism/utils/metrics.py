@@ -43,6 +43,15 @@ def compute_ssim(img1: Tensor, img2: Tensor, size: Optional[int] = None) -> floa
     img1_np = img1.squeeze().detach().cpu().numpy()
     img2_np = img2.squeeze().detach().cpu().numpy()
 
+    # Determine appropriate window size based on image size
+    # SSIM default window size is 7, but we need smaller for tiny images
+    min_dim = min(img1_np.shape)
+    if min_dim < 7:
+        # Use a smaller odd window size (3 or 5) for small images
+        win_size = 3 if min_dim < 5 else 5
+    else:
+        win_size = 7
+
     # Calculate the SSIM using skimage
     ssim_value = compare_ssim(
         img1_np,
@@ -52,6 +61,7 @@ def compute_ssim(img1: Tensor, img2: Tensor, size: Optional[int] = None) -> floa
         sigma=1.5,
         use_sample_covariance=False,
         multichannel=False,
+        win_size=win_size,
     )
 
     return float(ssim_value)
