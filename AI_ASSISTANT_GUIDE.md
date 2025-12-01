@@ -929,6 +929,25 @@ plt.show()
 
 ## Commit & Pull Request Guidelines
 
+### Pre-Commit Requirements
+
+**IMPORTANT**: Before creating any commit, you MUST:
+
+1. **Update the knowledge graph** if any Python files in `prism/` were modified:
+   - Use MCP memory tools (`mcp__memory__create_entities`, `mcp__memory__create_relations`, etc.)
+   - Scan modified files for new/changed classes, functions, and relationships
+   - Add new entities and relations to the graph
+   - This keeps the knowledge graph in sync with the codebase
+
+2. **Run code quality checks**:
+   ```bash
+   uv run ruff check --fix prism/ tests/
+   uv run ruff format prism/ tests/
+   uv run mypy prism/
+   ```
+
+3. **Stage all changes** including `.memory/memory.jsonl` if updated
+
 ### Commit Messages
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
