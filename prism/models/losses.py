@@ -1028,14 +1028,16 @@ class LossAggregator(nn.Module):
     - loss_old: Ensures model still fits all previous measurements
     - loss_new: Ensures model fits the new measurement
 
-    For L1/L2 losses: Both losses are normalized by "zero loss" (loss of zeros vs target)
+    For L1/L2 losses: By default, both losses are normalized by "zero loss" (loss of zeros vs target)
     to make threshold-based stopping robust to varying measurement intensities.
+    This can be disabled with normalize_loss=False to match notebook behavior.
 
     For SSIM losses: Uses DSSIM = (1 - SSIM) / 2 formulation, operating in measurement space
     (same as L1/L2, but using structural similarity instead of pixel-wise difference).
 
     Args:
         loss_type: Type of loss function ("l1", "l2", "ssim", or "ms-ssim") (default: "l1")
+        normalize_loss: Whether to normalize L1/L2 loss by zero-loss (default: True)
         new_weight: Weight for new loss (unused, kept for compatibility)
         f_weight: Frequency-domain weight (unused, kept for compatibility)
 
@@ -1085,6 +1087,7 @@ class LossAggregator(nn.Module):
     def __init__(
         self,
         loss_type: Literal["l1", "l2", "ssim", "ms-ssim", "composite"] = "l1",
+        normalize_loss: bool = True,
         new_weight: Optional[float] = None,
         f_weight: Optional[float] = None,
         loss_weights: Optional[Dict[str, float]] = None,
@@ -1095,6 +1098,8 @@ class LossAggregator(nn.Module):
 
         Args:
             loss_type: One of ["l1", "l2", "ssim", "ms-ssim", "composite"]
+            normalize_loss: Whether to normalize L1/L2 loss by zero-loss (default: True).
+                           When False, matches notebook behavior (no normalization).
             new_weight: Weight for new loss (unused, kept for compatibility)
             f_weight: Frequency-domain weight (unused, kept for compatibility)
             loss_weights: For composite losses, dict of {loss_name: weight}
@@ -1109,6 +1114,9 @@ class LossAggregator(nn.Module):
             >>> # Simple L1 loss
             >>> loss = LossAggregator(loss_type='l1')
             >>>
+            >>> # L1 without normalization (matches notebook)
+            >>> loss = LossAggregator(loss_type='l1', normalize_loss=False)
+            >>>
             >>> # SSIM with custom window
             >>> loss = LossAggregator(loss_type='ssim', window_size=7, sigma=1.0)
             >>>
@@ -1120,6 +1128,7 @@ class LossAggregator(nn.Module):
         """
         super().__init__()
         self.loss_type = loss_type
+        self.normalize_loss = normalize_loss
         self.register_buffer("running_loss1", torch.tensor(1.0))
         self.register_buffer("running_loss2", torch.tensor(1.0))
 
@@ -1227,9 +1236,14 @@ class LossAggregator(nn.Module):
             # Compute loss per pixel
             loss = self.loss(inputs, target).view(target.size(0), -1).mean(dim=-1)
 
-            # Normalize by zero-loss (loss of zeros vs target)
-            norm = self.loss(torch.zeros_like(inputs), target).view(target.size(0), -1).mean(dim=-1)
-            loss1, loss2 = loss / norm
+            if self.normalize_loss:
+                # Normalize by zero-loss (loss of zeros vs target)
+                norm = self.loss(torch.zeros_like(inputs), target).view(target.size(0), -1).mean(dim=-1)
+                # Add epsilon to prevent division by zero/small values
+                loss1, loss2 = loss / (norm + 1e-8)
+            else:
+                # No normalization (matches notebook behavior)
+                loss1, loss2 = loss[0], loss[1]
 
             return loss1, loss2
 

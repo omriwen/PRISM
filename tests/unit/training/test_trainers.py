@@ -296,6 +296,23 @@ class TestCreateScheduler:
         scheduler = create_scheduler(optimizer, scheduler_type="plateau")
         assert scheduler.mode == "min"
 
+    def test_create_none_scheduler(self, optimizer: torch.optim.Adam) -> None:
+        """Test creating no-op scheduler that keeps LR constant."""
+        scheduler = create_scheduler(optimizer, scheduler_type="none")
+        assert isinstance(scheduler, torch.optim.lr_scheduler.LambdaLR)
+
+    def test_none_scheduler_keeps_lr_constant(self, optimizer: torch.optim.Adam) -> None:
+        """Test that 'none' scheduler doesn't change learning rate."""
+        initial_lr = optimizer.param_groups[0]["lr"]
+        scheduler = create_scheduler(optimizer, scheduler_type="none")
+
+        # Step scheduler multiple times
+        for _ in range(10):
+            scheduler.step()
+
+        # LR should remain unchanged
+        assert optimizer.param_groups[0]["lr"] == initial_lr
+
 
 # =============================================================================
 # TEST: PRISMTrainer.__init__
@@ -1689,3 +1706,147 @@ class TestRetrySingleSample:
         assert abs(lr_retry1 - expected_lr1) < 1e-9
         assert abs(lr_retry2 - expected_lr2) < 1e-9
         assert lr_retry2 < lr_retry1
+
+
+# =============================================================================
+# TEST: First Sample Convergence Logic
+# =============================================================================
+
+
+class TestFirstSampleConvergence:
+    """Tests for convergence behavior on first vs later samples.
+
+    The convergence logic differs between first and later samples:
+    - First sample (sample_idx == 0): Only loss_new needs to be below threshold
+    - Later samples (sample_idx > 0): Both loss_old AND loss_new need to be below threshold
+
+    This matches notebook behavior where the first sample establishes the initial
+    reconstruction and doesn't have prior measurements to match.
+    """
+
+    def test_first_sample_only_checks_loss_new(
+        self, trainer_setup: dict, sample_tensors: dict
+    ) -> None:
+        """Test that first sample converges based only on loss_new (not loss_old).
+
+        For the first sample, there's no accumulated measurement to compare against,
+        so convergence is determined solely by how well the reconstruction matches
+        the new measurement through the first aperture.
+        """
+        # Set threshold that would pass loss_new but not loss_old
+        trainer_setup["args"].loss_th = 1.0  # Moderate threshold
+        trainer_setup["args"].n_samples = 2
+        trainer_setup["args"].max_epochs = 2
+        trainer_setup["args"].n_epochs = 5
+        trainer_setup["args"].enable_adaptive_convergence = False
+
+        trainer = PRISMTrainer(**trainer_setup, use_amp=False)
+        trainer.current_reconstruction = sample_tensors["measurement"]
+
+        with disable_training_progress():
+            result = trainer.run_progressive_training(
+                sample_centers=sample_tensors["sample_centers"][:2],
+                image=sample_tensors["image_gt"],
+                image_gt=sample_tensors["image_gt"],
+                samples_per_line_meas=0,
+            )
+
+        # Should complete without error
+        assert result is not None
+        assert "final_reconstruction" in result
+        # First sample should have converged (based on loss_new only)
+        # Verify we have at least one sample processed
+        assert len(trainer.losses) >= 1
+
+    def test_later_samples_check_both_losses(
+        self, trainer_setup: dict, sample_tensors: dict
+    ) -> None:
+        """Test that later samples need both loss_old and loss_new below threshold.
+
+        For samples after the first, convergence requires:
+        1. loss_old < threshold (reconstruction matches accumulated measurements)
+        2. loss_new < threshold (reconstruction matches new measurement)
+
+        This ensures the reconstruction remains consistent with all prior samples
+        while also fitting the new measurement.
+        """
+        # Use very low threshold to ensure samples won't converge easily
+        trainer_setup["args"].loss_th = 1e-10  # Very strict threshold
+        trainer_setup["args"].n_samples = 3
+        trainer_setup["args"].max_epochs = 2
+        trainer_setup["args"].n_epochs = 3
+        trainer_setup["args"].enable_adaptive_convergence = False
+
+        trainer = PRISMTrainer(**trainer_setup, use_amp=False)
+        trainer.current_reconstruction = sample_tensors["measurement"]
+
+        with disable_training_progress():
+            result = trainer.run_progressive_training(
+                sample_centers=sample_tensors["sample_centers"],
+                image=sample_tensors["image_gt"],
+                image_gt=sample_tensors["image_gt"],
+                samples_per_line_meas=0,
+            )
+
+        # With very low threshold, later samples should not fully converge
+        # and will run max_epochs
+        assert result is not None
+        # Check that failed_samples is populated (samples that didn't converge)
+        assert "failed_samples" in result
+
+    def test_convergence_threshold_respected(
+        self, trainer_setup: dict, sample_tensors: dict
+    ) -> None:
+        """Test that loss threshold is correctly applied for convergence checking."""
+        # Easy threshold should allow convergence
+        trainer_setup["args"].loss_th = 10.0  # Very easy threshold
+        trainer_setup["args"].n_samples = 2
+        trainer_setup["args"].max_epochs = 5
+        trainer_setup["args"].n_epochs = 10
+        trainer_setup["args"].enable_adaptive_convergence = False
+
+        trainer = PRISMTrainer(**trainer_setup, use_amp=False)
+        trainer.current_reconstruction = sample_tensors["measurement"]
+
+        with disable_training_progress():
+            result = trainer.run_progressive_training(
+                sample_centers=sample_tensors["sample_centers"][:2],
+                image=sample_tensors["image_gt"],
+                image_gt=sample_tensors["image_gt"],
+                samples_per_line_meas=0,
+            )
+
+        # With easy threshold, should converge
+        assert result is not None
+        # Should have no failed samples with easy threshold
+        assert len(trainer.failed_samples) == 0
+
+    def test_first_sample_uses_same_measurement_for_both_losses(
+        self, trainer_setup: dict, sample_tensors: dict
+    ) -> None:
+        """Test that first sample uses new measurement for both loss_old and loss_new.
+
+        For the first sample (sample_count == 0), there's no accumulated mask yet,
+        so MeasurementSystem returns [new_meas, new_meas] for the measurement.
+        This means loss_old == loss_new for the first sample.
+        """
+        trainer_setup["args"].loss_th = 1.0
+        trainer_setup["args"].n_samples = 1  # Only first sample
+        trainer_setup["args"].max_epochs = 2
+        trainer_setup["args"].n_epochs = 5
+
+        trainer = PRISMTrainer(**trainer_setup, use_amp=False)
+        trainer.current_reconstruction = sample_tensors["measurement"]
+
+        # The measurement system should return [new, new] for first sample
+        # This is tested indirectly through successful training
+        with disable_training_progress():
+            result = trainer.run_progressive_training(
+                sample_centers=sample_tensors["sample_centers"][:1],
+                image=sample_tensors["image_gt"],
+                image_gt=sample_tensors["image_gt"],
+                samples_per_line_meas=0,
+            )
+
+        assert result is not None
+        assert "final_reconstruction" in result

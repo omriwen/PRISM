@@ -632,7 +632,9 @@ class MeasurementSystem:
         dk = 1.0 / (grid.nx * grid.dx)
         return k_radius / dk
 
-    def measure_through_accumulated_mask(self, field: Tensor) -> Tensor:
+    def measure_through_accumulated_mask(
+        self, field: Tensor, input_mode: str = "amplitude"
+    ) -> Tensor:
         """Measure field through accumulated mask.
 
         Simulates measuring the current reconstruction through all previously
@@ -641,6 +643,10 @@ class MeasurementSystem:
 
         Args:
             field: Field to measure (typically current reconstruction)
+            input_mode: How to interpret field values. Default "amplitude" for
+                       model reconstruction. Use "intensity" for ground truth images.
+                       - "amplitude": Values are electric field |E|, used directly
+                       - "intensity": Values are |E|², converted via sqrt()
 
         Returns:
             Measurement through cumulative mask
@@ -648,12 +654,21 @@ class MeasurementSystem:
         Example:
             >>> old_meas = measurement_system.measure_through_accumulated_mask(reconstruction)
         """
+        # Validate and convert field to proper complex field for propagation
+        # This is critical for matching notebook behavior:
+        # - reconstruction uses input_mode="amplitude" (model output)
+        # - ground truth uses input_mode="intensity" (image data)
+        if hasattr(self.instrument, "validate_field"):
+            validated_field = self.instrument.validate_field(field, input_mode=input_mode)
+        else:
+            validated_field = field
+
         # Propagate to k-space
         if hasattr(self.instrument, "propagate_to_kspace"):
-            field_kspace = self.instrument.propagate_to_kspace(field)
+            field_kspace = self.instrument.propagate_to_kspace(validated_field)
         else:
             # Fallback: use instrument's forward method
-            field_kspace = field
+            field_kspace = validated_field
 
         # Apply cumulative mask
         field_kspace_masked = field_kspace * self.cum_mask
@@ -720,6 +735,7 @@ class MeasurementSystem:
         field: Tensor,
         aperture_centers: Union[Tensor, List[List[float]]],
         add_noise: bool = False,
+        input_mode: str = "auto",
         **kwargs: Any,
     ) -> Tensor:
         """Generate measurements through specified apertures/illuminations.
@@ -740,6 +756,11 @@ class MeasurementSystem:
             In ILLUMINATION mode, these are converted to k-space coordinates.
         add_noise : bool
             Whether to add noise. Default False.
+        input_mode : str
+            How to interpret field values. Default "auto".
+            - "intensity": Field is |E|², converted via sqrt()
+            - "amplitude": Field is |E|, used directly
+            - "auto": Auto-detect from dtype and values
         **kwargs : Any
             Additional instrument-specific parameters.
 
@@ -765,6 +786,9 @@ class MeasurementSystem:
             centers_list = aperture_centers.tolist()
         else:
             centers_list = list(aperture_centers)
+
+        # Add input_mode to kwargs for instrument.forward()
+        kwargs["input_mode"] = input_mode
 
         # Route based on scanning mode and method
         if self.config.scanning_mode == ScanningMode.ILLUMINATION:
@@ -966,11 +990,17 @@ class MeasurementSystem:
 
         start, end = line_endpoints
 
+        # Validate and convert ground truth field (intensity -> amplitude)
+        if hasattr(self.instrument, "validate_field"):
+            validated_gt = self.instrument.validate_field(ground_truth, input_mode="intensity")
+        else:
+            validated_gt = ground_truth
+
         # Propagate to k-space
         if hasattr(self.instrument, "propagate_to_kspace"):
-            field_kspace = self.instrument.propagate_to_kspace(ground_truth)
+            field_kspace = self.instrument.propagate_to_kspace(validated_gt)
         else:
-            field_kspace = ground_truth
+            field_kspace = validated_gt
 
         # Compute new measurement through line
         new_meas = self.line_acquisition.forward(field_kspace, start, end, add_noise=add_noise)
@@ -1108,8 +1138,9 @@ class MeasurementSystem:
                 new_meas_no_noise = cached_meas
             else:
                 # Cache miss - compute measurement
+                # Use input_mode="intensity" for ground truth since images are intensity-based
                 new_meas_no_noise = self.get_measurements(
-                    ground_truth, centers_list, add_noise=False, **kwargs
+                    ground_truth, centers_list, add_noise=False, input_mode="intensity", **kwargs
                 )
 
                 # Store in cache (before noise)
@@ -1273,6 +1304,9 @@ class MeasurementSystem:
         - measurement[0]: inputs through cumulative mask (old measurements)
         - measurement[1]: inputs through new aperture (new measurement)
 
+        For the first sample (sample_count == 0), there is no accumulated mask,
+        so both outputs are the new measurement to be consistent with measure().
+
         Args:
             inputs: Model output (reconstruction) [B, C, H, W]
             centers: Aperture center positions for new measurement
@@ -1301,11 +1335,20 @@ class MeasurementSystem:
         elif inputs.ndim == 3:
             inputs = inputs.unsqueeze(0)
 
-        # Old measurement: through cumulative mask
-        old_meas = self.measure_through_accumulated_mask(inputs)
-
         # New measurement: through specified apertures
-        new_meas = self.get_measurements(inputs, centers_list, add_noise=False)
+        # Use input_mode="amplitude" since model reconstruction outputs amplitude
+        new_meas = self.get_measurements(
+            inputs, centers_list, add_noise=False, input_mode="amplitude"
+        )
+
+        # Old measurement: through cumulative mask
+        # For first sample (sample_count == 0), there is no accumulated mask,
+        # so use new measurement for both (consistent with measure() behavior)
+        if self.sample_count == 0:
+            old_meas = new_meas
+        else:
+            # input_mode="amplitude" for reconstruction (default in measure_through_accumulated_mask)
+            old_meas = self.measure_through_accumulated_mask(inputs)
 
         # Ensure consistent shape
         if old_meas.ndim == 2:

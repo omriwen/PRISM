@@ -14,7 +14,11 @@ from typing import Any
 import torch
 from loguru import logger
 from torch import nn, optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, ReduceLROnPlateau
+from torch.optim.lr_scheduler import (
+    CosineAnnealingWarmRestarts,
+    LambdaLR,
+    ReduceLROnPlateau,
+)
 from torch.utils.tensorboard import SummaryWriter
 
 from prism.core import patterns
@@ -39,7 +43,7 @@ def create_scheduler(
     optimizer : torch.optim.Optimizer
         The optimizer to schedule
     scheduler_type : str
-        Type of scheduler: 'plateau' or 'cosine_warm_restarts'
+        Type of scheduler: 'none', 'plateau', or 'cosine_warm_restarts'
     **kwargs : Any
         Additional arguments passed to scheduler
 
@@ -53,8 +57,11 @@ def create_scheduler(
     ValueError
         If scheduler_type is unknown
     """
-    if scheduler_type == "plateau":
-        return ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=0)
+    if scheduler_type == "none":
+        # No-op scheduler: keeps learning rate constant
+        return LambdaLR(optimizer, lr_lambda=lambda _: 1.0)
+    elif scheduler_type == "plateau":
+        return ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=10)
     elif scheduler_type == "cosine_warm_restarts":
         return CosineAnnealingWarmRestarts(
             optimizer,
@@ -399,8 +406,11 @@ class PRISMTrainer:
         )
 
         # Use LossAggregator for combining old and new measurements
+        # --no-normalize-loss flag sets no_normalize_loss=True, so we invert it
+        normalize_loss = not getattr(self.args, "no_normalize_loss", False)
         criterion = LossAggregator(
             loss_type=self.args.loss_type,
+            normalize_loss=normalize_loss,
             new_weight=self.args.new_weight,
             f_weight=self.args.f_weight,
         ).to(self.device)
@@ -461,23 +471,25 @@ class PRISMTrainer:
                 loss_old = torch.tensor(1000.0)
                 loss_new = torch.tensor(1000.0)
 
-                # Initialize convergence monitor if adaptive convergence is enabled
-                monitor: ConvergenceMonitor | None = None
-                if use_adaptive:
-                    monitor = ConvergenceMonitor(
-                        loss_threshold=self.args.loss_th,
-                        patience=getattr(self.args, "early_stop_patience", 10),
-                        plateau_window=getattr(self.args, "plateau_window", 50),
-                        plateau_threshold=getattr(self.args, "plateau_threshold", 0.01),
-                        escalation_epochs=getattr(self.args, "escalation_epochs", 200),
-                    )
+                # Always create convergence monitor for metrics tracking
+                # (tier escalation is only used when use_adaptive=True)
+                monitor = ConvergenceMonitor(
+                    loss_threshold=self.args.loss_th,
+                    patience=getattr(self.args, "early_stop_patience", 10),
+                    plateau_window=getattr(self.args, "plateau_window", 50),
+                    plateau_threshold=getattr(self.args, "plateau_threshold", 0.01),
+                    escalation_epochs=getattr(self.args, "escalation_epochs", 200),
+                )
 
                 # Reset optimizer for each sample
                 base_lr = self.args.lr
                 self.optimizer = optim.Adam(
                     self.model.parameters(), lr=base_lr, amsgrad=self.args.use_amsgrad
                 )
-                self.scheduler = create_scheduler(self.optimizer, "plateau")
+                # Use plateau scheduler only when adaptive convergence is enabled;
+                # otherwise use no-op scheduler to keep LR constant
+                scheduler_type = "plateau" if use_adaptive else "none"
+                self.scheduler = create_scheduler(self.optimizer, scheduler_type)
 
                 # Track epochs for this sample
                 total_epochs_this_sample = 0
@@ -490,7 +502,7 @@ class PRISMTrainer:
                 while loss_old.item() >= self.args.loss_th or loss_new.item() >= self.args.loss_th:
                     if counter >= current_max_epochs:
                         # Check for adaptive escalation
-                        if use_adaptive and monitor is not None:
+                        if use_adaptive:
                             if monitor.should_escalate():
                                 # Escalate to aggressive tier
                                 tier_config = get_tier_config(
@@ -562,9 +574,8 @@ class PRISMTrainer:
                         loss_new_value = float(loss_new.item())
                         total_epochs_this_sample += 1
 
-                        # Update convergence monitor
-                        if monitor is not None:
-                            monitor.update(loss.item())
+                        # Update convergence monitor (always tracked for metrics)
+                        monitor.update(loss.item())
 
                         epoch_steps_completed += 1
                         eta_seconds = epoch_eta.update(epoch_steps_completed)
@@ -590,12 +601,11 @@ class PRISMTrainer:
                             "wall_time": time.time() - self.training_start_time,
                         }
 
-                        # Add convergence monitor metrics if available
-                        if monitor is not None:
-                            stats = monitor.get_statistics()
-                            epoch_metrics["epochs_since_best"] = stats["epochs_since_improvement"]
-                            epoch_metrics["best_loss"] = stats["best_loss"]
-                            epoch_metrics["loss_velocity"] = monitor.loss_velocity()
+                        # Add convergence monitor metrics (always tracked)
+                        stats = monitor.get_statistics()
+                        epoch_metrics["epochs_since_best"] = stats["epochs_since_improvement"]
+                        epoch_metrics["best_loss"] = stats["best_loss"]
+                        epoch_metrics["loss_velocity"] = monitor.loss_velocity()
 
                         # Add GPU memory if CUDA available
                         if torch.cuda.is_available():
@@ -611,17 +621,21 @@ class PRISMTrainer:
                         )
 
                         # Check for convergence (standard check)
-                        if (
-                            loss_old_value < self.args.loss_th
-                            and loss_new_value < self.args.loss_th
-                        ):
-                            sample_converged = True
-                            if monitor is not None:
+                        # First sample: only check loss_new (no cumulative mask yet)
+                        # Later samples: check both losses
+                        if center_idx == self.args.n_samples_0:
+                            if loss_new_value < self.args.loss_th:
+                                sample_converged = True
                                 current_tier = monitor.get_current_tier()
-                            break
+                                break
+                        else:
+                            if loss_old_value < self.args.loss_th and loss_new_value < self.args.loss_th:
+                                sample_converged = True
+                                current_tier = monitor.get_current_tier()
+                                break
 
                         # Early stopping with adaptive convergence
-                        if use_adaptive and monitor is not None:
+                        if use_adaptive:
                             if monitor.should_stop():
                                 if monitor.is_converged():
                                     sample_converged = True
@@ -657,14 +671,13 @@ class PRISMTrainer:
                     # Check if converged or should stop
                     if sample_converged:
                         break
-                    if use_adaptive and monitor is not None and monitor.should_stop():
+                    if use_adaptive and monitor.should_stop():
                         break
 
-                # Track convergence statistics
+                # Track convergence statistics (always tracked for metrics)
                 self.epochs_per_sample.append(total_epochs_this_sample)
                 self.tiers_per_sample.append(current_tier.value)
-                if monitor is not None:
-                    self.convergence_stats.append(monitor.get_statistics())
+                self.convergence_stats.append(monitor.get_statistics())
 
                 # Log efficiency
                 if use_adaptive and total_epochs_this_sample > 0:
@@ -742,28 +755,30 @@ class PRISMTrainer:
                         ref_radius_1=self.args.samples_r_cutoff,
                     )
 
+                # Update cumulative mask (MUST happen regardless of save_data!)
+                # This is critical for progressive training - the mask tracks which
+                # k-space regions have been measured so loss_old can enforce consistency
+                if (
+                    self.measurement_system.line_acquisition is not None
+                    and self.args.sample_length > 0
+                    and len(center_ends) == 2
+                ):
+                    # Line mode with new batched acquisition
+                    start = torch.tensor(
+                        center_ends[0], device=self.device, dtype=torch.float32
+                    )
+                    end = torch.tensor(center_ends[1], device=self.device, dtype=torch.float32)
+                    self.measurement_system.add_mask(line_endpoints=(start, end))
+                else:
+                    # Point mode or legacy line mode
+                    self.measurement_system.add_mask(center)
+
                 # Save checkpoint and log to TensorBoard
                 if self.args.save_data:
                     self._log_sample_metrics(center_idx, loss_old_value, loss_new_value, center)
                     self._save_checkpoint(
                         center_idx, sample_centers, pattern_metadata, pattern_spec
                     )
-                else:
-                    # Debug mode: still update aggregator
-                    if (
-                        self.measurement_system.line_acquisition is not None
-                        and self.args.sample_length > 0
-                        and len(center_ends) == 2
-                    ):
-                        # Line mode with new batched acquisition
-                        start = torch.tensor(
-                            center_ends[0], device=self.device, dtype=torch.float32
-                        )
-                        end = torch.tensor(center_ends[1], device=self.device, dtype=torch.float32)
-                        self.measurement_system.add_mask(line_endpoints=(start, end))
-                    else:
-                        # Point mode or legacy line mode
-                        self.measurement_system.add_mask(center)
 
                 # Invoke callback at sample end
                 self._invoke_callbacks(
@@ -1000,8 +1015,10 @@ class PRISMTrainer:
         if switch_loss and retry_num > 0:
             original_loss = criterion.loss_type
             new_loss_type = get_retry_loss_type(original_loss, retry_num)
+            normalize_loss = not getattr(self.args, "no_normalize_loss", False)
             retry_criterion: LossAggregator = LossAggregator(
                 loss_type=new_loss_type,  # type: ignore[arg-type]
+                normalize_loss=normalize_loss,
                 new_weight=self.args.new_weight,
                 f_weight=self.args.f_weight,
             ).to(self.device)

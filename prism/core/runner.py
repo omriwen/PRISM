@@ -264,9 +264,10 @@ class PRISMRunner:
             from prism.config.constants import fresnel_number as calculate_fresnel_number
             from prism.core.propagators import select_propagator
 
-            # Calculate aperture size (object plane FOV)
-            # For SPIDS/telescope, FOV is determined by the object plane extent
-            aperture_size = self.args.image_size * self.args.dx
+            # Calculate aperture size (detector plane extent)
+            # Fresnel number uses the aperture size at the detector/observation plane
+            # NOT the projected FOV at the object plane (which would be image_size * dx)
+            aperture_size = self.args.image_size * self.args.dxf
 
             # Calculate Fresnel number for logging
             fresnel_num = calculate_fresnel_number(
@@ -296,9 +297,10 @@ class PRISMRunner:
             from prism.config.constants import fresnel_number as calculate_fresnel_number
             from prism.core.propagators import select_propagator
 
-            # Calculate aperture size (object plane FOV)
-            # For SPIDS/telescope, FOV is determined by the object plane extent
-            aperture_size = self.args.image_size * self.args.dx
+            # Calculate aperture size (detector plane extent)
+            # Fresnel number uses the aperture size at the detector/observation plane
+            # NOT the projected FOV at the object plane (which would be image_size * dx)
+            aperture_size = self.args.image_size * self.args.dxf
 
             # Calculate Fresnel number for logging
             fresnel_num = calculate_fresnel_number(

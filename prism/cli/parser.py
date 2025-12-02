@@ -212,6 +212,12 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--loss_th", type=float, default=1e-3, help="Loss threshold for stopping the training"
     )
     parser.add_argument(
+        "--no-normalize-loss",
+        action="store_true",
+        default=False,
+        help="Disable zero-loss normalization (matches notebook behavior)",
+    )
+    parser.add_argument(
         "--amsgrad", dest="use_amsgrad", action="store_true", help="Use amsgrad in the optimizer"
     )
     parser.add_argument(

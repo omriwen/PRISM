@@ -23,14 +23,17 @@
 #    - Newer, more flexible pattern specification system
 #    - Supports both builtin patterns and custom pattern files
 #
-# 3. Training Profiler (--profile)
+# 3. Fraunhofer Propagation (--propagator-method fraunhofer)
+#    - Far-field diffraction propagation
+#    - Appropriate for large propagation distances
+#
+# 4. Training Profiler (--profile)
 #    - Collects timing and memory data during training
 #    - Saves profile to runs/{name}/profile.pt
 #
 # Parameters from original run (runs/gencrop_eur_nsamples_240_len_80):
 #   - Object: europa
-#   - n_samples: 240 (line sampling, ~204 effective)
-#   - sample_length: 80 (line sampling mode)
+#   - n_samples: 240 (static positions)
 #   - fermat spiral sampling pattern
 #   - 25 max epochs per sample
 #   - L1 loss with threshold 0.001
@@ -59,6 +62,7 @@ echo ""
 echo "Novel Features Enabled:"
 echo "  ✓ Circle Initialization (original approach)"
 echo "  ✓ Modern Pattern Function System"
+echo "  ✓ Fraunhofer Propagation (far-field)"
 echo "  ✓ Training Profiler (performance analysis)"
 echo "======================================================================"
 echo ""
@@ -69,18 +73,16 @@ uv run python main.py \
     --n_samples 240 \
     --image_size 1024 \
     --sample_diameter 17 \
-    --sample_length 80 \
-    --samples_per_line_meas 11 \
-    --samples_per_line_rec 11 \
     --sample_sort center \
     --pattern-fn "builtin:fermat" \
+    --propagator-method fraunhofer \
     --n_epochs 1000 \
-    --max_epochs 25 \
+    --max_epochs 1 \
     --n_epochs_init 100 \
     --max_epochs_init 100 \
     --loss_type l1 \
     --lr 0.001 \
-    --loss_th 0.001 \
+    --loss_th 0.005 \
     --new_weight 1 \
     --f_weight 0.0001 \
     --output_activation none \
