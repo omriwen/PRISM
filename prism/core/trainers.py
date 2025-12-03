@@ -8,6 +8,7 @@ SPIDS and ePIE algorithms.
 from __future__ import annotations
 
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -155,6 +156,19 @@ class PRISMTrainer:
         self.current_reconstruction: torch.Tensor | None = None
         self.training_start_time = time.time()
 
+    def _get_profiler(self):
+        """Get profiler from callbacks if available.
+
+        Returns
+        -------
+        TrainingProfiler | None
+            The profiler instance if found in callbacks, else None.
+        """
+        for callback in self.callbacks:
+            if hasattr(callback, '_profiler'):
+                return callback._profiler
+        return None
+
     def _invoke_callbacks(self, method: str, *args: Any, **kwargs: Any) -> None:
         """Invoke callback method if it exists on registered callbacks.
 
@@ -220,6 +234,9 @@ class PRISMTrainer:
         init_steps_completed = 0
         init_denominator = criterion(measurement, torch.zeros_like(measurement))
 
+        # Get profiler for instrumentation (if available)
+        profiler = self._get_profiler()
+
         with TrainingProgress() as training_progress:
             init_task_id = training_progress.add_task("Initialization", total=init_total_steps)
 
@@ -245,9 +262,25 @@ class PRISMTrainer:
                 for epoch in range(self.args.n_epochs_init):
                     self.optimizer.zero_grad()
 
-                    # Forward pass with AMP if enabled
-                    if self.use_amp:
-                        with torch.cuda.amp.autocast():
+                    # Forward pass with AMP if enabled (with profiling)
+                    with profiler.profile_region("init_forward") if profiler else nullcontext():
+                        if self.use_amp:
+                            with torch.cuda.amp.autocast():
+                                output = self.model()
+                                # Physics-consistent loss for synthetic_aperture
+                                if (
+                                    self.args.initialization_target == "synthetic_aperture"
+                                    and telescope is not None
+                                    and sample_centers is not None
+                                ):
+                                    # Transform model output through telescope to measurement space
+                                    output_sa = telescope.compute_synthetic_aperture(
+                                        output, sample_centers, return_complex=False
+                                    )
+                                    loss = criterion(output_sa, measurement) / init_denominator
+                                else:
+                                    loss = criterion(output, measurement) / init_denominator
+                        else:
                             output = self.model()
                             # Physics-consistent loss for synthetic_aperture
                             if (
@@ -262,21 +295,6 @@ class PRISMTrainer:
                                 loss = criterion(output_sa, measurement) / init_denominator
                             else:
                                 loss = criterion(output, measurement) / init_denominator
-                    else:
-                        output = self.model()
-                        # Physics-consistent loss for synthetic_aperture
-                        if (
-                            self.args.initialization_target == "synthetic_aperture"
-                            and telescope is not None
-                            and sample_centers is not None
-                        ):
-                            # Transform model output through telescope to measurement space
-                            output_sa = telescope.compute_synthetic_aperture(
-                                output, sample_centers, return_complex=False
-                            )
-                            loss = criterion(output_sa, measurement) / init_denominator
-                        else:
-                            loss = criterion(output, measurement) / init_denominator
 
                     loss_value = float(loss.item())
 
@@ -306,14 +324,15 @@ class PRISMTrainer:
                         logger.error("Loss is NaN. Stopping training.")
                         raise RuntimeError("NaN loss encountered during initialization")
 
-                    # Backward pass with AMP if enabled
-                    if self.use_amp and self.scaler is not None:
-                        self.scaler.scale(loss).backward()
-                        self.scaler.step(self.optimizer)
-                        self.scaler.update()
-                    else:
-                        loss.backward()
-                        self.optimizer.step()
+                    # Backward pass with AMP if enabled (with profiling)
+                    with profiler.profile_region("init_backward") if profiler else nullcontext():
+                        if self.use_amp and self.scaler is not None:
+                            self.scaler.scale(loss).backward()
+                            self.scaler.step(self.optimizer)
+                            self.scaler.update()
+                        else:
+                            loss.backward()
+                            self.optimizer.step()
                 self.scheduler.step(loss)  # type: ignore[arg-type]
 
             if init_steps_completed:
@@ -422,6 +441,9 @@ class PRISMTrainer:
         sample_eta = ETACalculator(sample_total_steps)
         epoch_steps_completed = 0
         sample_steps_completed = 0
+
+        # Get profiler for instrumentation (if available)
+        profiler = self._get_profiler()
 
         with TrainingProgress() as training_progress:
             epoch_task_id = training_progress.add_task("Training Epochs", total=epoch_total_steps)
@@ -549,10 +571,26 @@ class PRISMTrainer:
 
                         self.optimizer.zero_grad()
 
-                        # Forward pass with AMP if enabled
-                        if self.use_amp:
-                            with torch.cuda.amp.autocast():
+                        # Forward pass with AMP if enabled (with profiling)
+                        with profiler.profile_region("forward") if profiler else nullcontext():
+                            if self.use_amp:
+                                with torch.cuda.amp.autocast():
+                                    output = self.model()
+                            else:
                                 output = self.model()
+
+                        # Loss computation (with profiling)
+                        with profiler.profile_region("loss") if profiler else nullcontext():
+                            if self.use_amp:
+                                with torch.cuda.amp.autocast():
+                                    loss_old, loss_new = criterion(
+                                        inputs=output,
+                                        target=measurement,
+                                        telescope=self.measurement_system,
+                                        center=center_rec,
+                                    )
+                                    loss = loss_old + loss_new
+                            else:
                                 loss_old, loss_new = criterion(
                                     inputs=output,
                                     target=measurement,
@@ -560,15 +598,6 @@ class PRISMTrainer:
                                     center=center_rec,
                                 )
                                 loss = loss_old + loss_new
-                        else:
-                            output = self.model()
-                            loss_old, loss_new = criterion(
-                                inputs=output,
-                                target=measurement,
-                                telescope=self.measurement_system,
-                                center=center_rec,
-                            )
-                            loss = loss_old + loss_new
 
                         loss_old_value = float(loss_old.item())
                         loss_new_value = float(loss_new.item())
@@ -650,14 +679,20 @@ class PRISMTrainer:
                             logger.error("Loss is NaN. Stopping training.")
                             raise RuntimeError("NaN loss encountered during training")
 
-                        # Backward pass with AMP if enabled
-                        if self.use_amp and self.scaler is not None:
-                            self.scaler.scale(loss).backward()
-                            self.scaler.step(self.optimizer)
-                            self.scaler.update()
-                        else:
-                            loss.backward()
-                            self.optimizer.step()
+                        # Backward pass (with profiling)
+                        with profiler.profile_region("backward") if profiler else nullcontext():
+                            if self.use_amp and self.scaler is not None:
+                                self.scaler.scale(loss).backward()
+                            else:
+                                loss.backward()
+
+                        # Optimizer step (with profiling)
+                        with profiler.profile_region("optimizer_step") if profiler else nullcontext():
+                            if self.use_amp and self.scaler is not None:
+                                self.scaler.step(self.optimizer)
+                                self.scaler.update()
+                            else:
+                                self.optimizer.step()
 
                         # Invoke callback at epoch end
                         self._invoke_callbacks("on_epoch_end", epoch, loss.item())
@@ -1066,12 +1101,32 @@ class PRISMTrainer:
         loss_old = torch.tensor(1000.0)
         loss_new = torch.tensor(1000.0)
 
+        # Get profiler for instrumentation (if available)
+        profiler = self._get_profiler()
+
         for epoch in range(max_epochs_retry):
             self.optimizer.zero_grad()
 
-            if self.use_amp:
-                with torch.cuda.amp.autocast():
+            # Forward pass (with profiling)
+            with profiler.profile_region("retry_forward") if profiler else nullcontext():
+                if self.use_amp:
+                    with torch.cuda.amp.autocast():
+                        output = self.model()
+                else:
                     output = self.model()
+
+            # Loss computation (with profiling)
+            with profiler.profile_region("retry_loss") if profiler else nullcontext():
+                if self.use_amp:
+                    with torch.cuda.amp.autocast():
+                        loss_old, loss_new = retry_criterion(
+                            inputs=output,
+                            target=measurement,
+                            telescope=self.measurement_system,
+                            center=center_rec,
+                        )
+                        loss = loss_old + loss_new
+                else:
                     loss_old, loss_new = retry_criterion(
                         inputs=output,
                         target=measurement,
@@ -1079,15 +1134,6 @@ class PRISMTrainer:
                         center=center_rec,
                     )
                     loss = loss_old + loss_new
-            else:
-                output = self.model()
-                loss_old, loss_new = retry_criterion(
-                    inputs=output,
-                    target=measurement,
-                    telescope=self.measurement_system,
-                    center=center_rec,
-                )
-                loss = loss_old + loss_new
 
             monitor.update(loss.item())
 
@@ -1104,14 +1150,20 @@ class PRISMTrainer:
             if torch.isnan(loss).any():
                 return False
 
-            # Backward pass
-            if self.use_amp and self.scaler is not None:
-                self.scaler.scale(loss).backward()
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                loss.backward()
-                self.optimizer.step()
+            # Backward pass (with profiling)
+            with profiler.profile_region("retry_backward") if profiler else nullcontext():
+                if self.use_amp and self.scaler is not None:
+                    self.scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+
+            # Optimizer step (with profiling)
+            with profiler.profile_region("retry_optimizer_step") if profiler else nullcontext():
+                if self.use_amp and self.scaler is not None:
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    self.optimizer.step()
 
             # Step scheduler
             if isinstance(self.scheduler, ReduceLROnPlateau):

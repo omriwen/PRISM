@@ -990,9 +990,9 @@ class MeasurementSystem:
 
         start, end = line_endpoints
 
-        # Validate and convert ground truth field (intensity -> amplitude)
+        # Validate ground truth field (already amplitude since load_image() applies sqrt())
         if hasattr(self.instrument, "validate_field"):
-            validated_gt = self.instrument.validate_field(ground_truth, input_mode="intensity")
+            validated_gt = self.instrument.validate_field(ground_truth, input_mode="amplitude")
         else:
             validated_gt = ground_truth
 
@@ -1138,9 +1138,9 @@ class MeasurementSystem:
                 new_meas_no_noise = cached_meas
             else:
                 # Cache miss - compute measurement
-                # Use input_mode="intensity" for ground truth since images are intensity-based
+                # Use input_mode="amplitude" for ground truth since load_image() already applies sqrt()
                 new_meas_no_noise = self.get_measurements(
-                    ground_truth, centers_list, add_noise=False, input_mode="intensity", **kwargs
+                    ground_truth, centers_list, add_noise=False, input_mode="amplitude", **kwargs
                 )
 
                 # Store in cache (before noise)
