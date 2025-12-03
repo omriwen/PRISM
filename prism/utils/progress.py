@@ -7,6 +7,7 @@ from collections import defaultdict
 from typing import Any
 
 import numpy as np
+from loguru import logger
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
@@ -25,6 +26,49 @@ PROGRESS_PAIRS: dict[tuple[str, str], str] = {
 
 # Metrics that should be formatted as time (HH:MM:SS or MM:SS)
 TIME_METRICS: set[str] = {"elapsed", "wall_time", "sample_time"}
+
+# Metrics to hide from CLI display (still logged to tensorboard/wandb)
+HIDDEN_METRICS: set[str] = {
+    # Evaluation metrics (logged only)
+    "rmse",
+    "psnr",
+    # Convergence monitor internals
+    "epochs_since_best",
+    "best_loss",
+    "loss_velocity",
+    # Redundant time metrics
+    "wall_time",
+    "sample_time",
+    # Internal state
+    "base_lr",
+    "scheduler",
+    "tier",
+    "phase",
+    # Max values (combined with current values)
+    "max_epochs",
+    "max_init_epochs",
+    "max_init_cycles",
+    "n_samples",
+}
+
+# Metric display groups and ordering
+METRIC_GROUPS: dict[str, list[str]] = {
+    "Progress": ["sample", "epoch", "init_cycle", "init_epoch", "lr"],
+    "Loss": ["loss", "loss_old", "loss_new", "init_loss", "ssim"],
+    "Timing": ["eta", "elapsed"],
+    "System": ["gpu_mem_mb"],
+}
+
+# Human-readable display names
+METRIC_DISPLAY_NAMES: dict[str, str] = {
+    "loss_old": "Loss (old)",
+    "loss_new": "Loss (new)",
+    "init_loss": "Init Loss",
+    "ssim": "SSIM",
+    "gpu_mem_mb": "GPU Mem",
+    "lr": "LR",
+    "elapsed": "Total",
+}
 
 
 def render_sparkline(values: list[float], width: int = 20, use_unicode: bool = True) -> str:
@@ -137,8 +181,8 @@ class TrainingProgress:
         self,
         console: Console | None = None,
         refresh_per_second: float = 10.0,
-        enable_sparklines: bool = True,
-        enable_emojis: bool = True,
+        enable_sparklines: bool = False,
+        enable_emojis: bool = False,
         use_unicode: bool = True,
         sparkline_width: int = 15,
         metric_history_size: int = 100,
@@ -175,9 +219,22 @@ class TrainingProgress:
         self.use_unicode = use_unicode
         self.sparkline_width = sparkline_width
         self.metric_history_size = metric_history_size
+        self._suppressed_handler_id: int | None = None
 
     def __enter__(self) -> "TrainingProgress":
-        """Enter the live dashboard context."""
+        """Enter the live dashboard context with logger suppression."""
+        # Suppress console logs to prevent ghosting
+        # Remove all handlers and re-add without stderr
+        self._suppressed_handler_id = None
+        try:
+            # Get current handlers and remove stderr one
+            # Loguru doesn't expose handlers directly, so we remove all and re-add file handlers
+            logger.remove()
+            # Note: This will be reconfigured on exit
+            self._suppressed_handler_id = -1  # Flag that we suppressed
+        except Exception:
+            pass  # Continue even if suppression fails
+
         self.live = Live(
             self._render(),
             refresh_per_second=self.refresh_per_second,
@@ -187,10 +244,16 @@ class TrainingProgress:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Tear down the live dashboard."""
+        """Tear down the live dashboard and restore logger."""
         if self.live is not None:
             self.live.__exit__(exc_type, exc_val, exc_tb)
             self.live = None
+
+        # Restore logger configuration
+        if self._suppressed_handler_id is not None:
+            from prism.utils.logging_config import setup_logging
+
+            setup_logging(level="INFO", show_time=True, show_level=True)
 
     def add_task(self, description: str, total: float) -> TaskID:
         """Register a new progress task and refresh the dashboard.
@@ -293,88 +356,63 @@ class TrainingProgress:
             border_style="cyan",
         )
 
-    def _build_metrics_table(self) -> Table:
-        """Create a table view of the current metrics with sparklines and trends."""
-        table = Table(title="Training Metrics", expand=True)
-        table.add_column("Metric", justify="left", no_wrap=True)
-        table.add_column("Current", justify="right")
-
-        if self.enable_sparklines:
-            table.add_column("Change", justify="right", style="dim")
-            table.add_column("Trend", justify="center", no_wrap=True)
-            if self.enable_emojis:
-                table.add_column("Status", justify="center", no_wrap=True)
-
-        if not self.metrics:
-            # Fill remaining columns with empty strings
-            num_extra_cols = len(table.columns) - 2  # Subtract Metric and Current columns
-            table.add_row("status", "initialising", *[""] * num_extra_cols)
-            return table
-
-        # Build set of "max" metrics that should be combined (skip as separate rows)
-        skip_metrics: set[str] = set()
-        combined_values: dict[str, str] = {}
+    def _build_combined_values(self) -> dict[str, str]:
+        """Build combined 'current/max' values for progress pairs."""
+        combined: dict[str, str] = {}
 
         for (current_key, max_key), display_name in PROGRESS_PAIRS.items():
             if current_key in self.metrics and max_key in self.metrics:
-                # Both parts present - combine them
                 current_val = self.metrics[current_key]
                 max_val = self.metrics[max_key]
-                combined_values[current_key] = f"{current_val}/{max_val}"
-                skip_metrics.add(max_key)
+                combined[current_key] = f"{current_val}/{max_val}"
 
-        for key, value in self.metrics.items():
-            # Skip max metrics that have been combined
-            if key in skip_metrics:
-                continue
+        # Format time metrics
+        for key in TIME_METRICS:
+            if key in self.metric_history and self.metric_history[key]:
+                if key not in HIDDEN_METRICS:
+                    combined[key] = self._format_time(self.metric_history[key][-1])
 
-            # Skip None values
-            if value is None or value == "None":
-                continue
+        return combined
 
-            # Use combined value if available
-            display_value = combined_values.get(key, value)
+    def _build_metrics_table(self) -> Table:
+        """Create a simplified, grouped metrics table."""
+        table = Table(title="Training Metrics", expand=True, show_header=False)
+        table.add_column("Metric", justify="left", style="dim")
+        table.add_column("Value", justify="right")
 
-            # Format time metrics
-            if key in TIME_METRICS and key in self.metric_history:
-                history = self.metric_history[key]
-                if history:
-                    display_value = self._format_time(history[-1])
+        if not self.metrics:
+            table.add_row("status", "initializing...")
+            return table
 
-            row = [key, display_value]
+        # Build combined values for progress pairs
+        combined_values = self._build_combined_values()
 
-            if self.enable_sparklines:
-                # Calculate percent change
-                change_str = ""
-                if key in self.metric_history and len(self.metric_history[key]) >= 2:
-                    current = self.metric_history[key][-1]
-                    previous = self.metric_history[key][-2]
-                    if abs(previous) > 1e-10:
-                        percent_change = ((current - previous) / abs(previous)) * 100
-                        arrow = "↑" if percent_change > 0 else "↓"
-                        change_str = f"{arrow} {abs(percent_change):.1f}%"
-                row.append(change_str)
+        # Render metrics by group
+        displayed_metrics: set[str] = set()
 
-                # Add sparkline
-                if key in self.metric_history and len(self.metric_history[key]) > 0:
-                    sparkline = render_sparkline(
-                        self.metric_history[key],
-                        width=self.sparkline_width,
-                        use_unicode=self.use_unicode,
-                    )
-                    row.append(sparkline)
-                else:
-                    row.append("")
+        for group_name, metric_keys in METRIC_GROUPS.items():
+            group_rows = []
+            for key in metric_keys:
+                if key in displayed_metrics:
+                    continue
+                if key in HIDDEN_METRICS:
+                    continue
+                if key not in self.metrics and key not in combined_values:
+                    continue
 
-                # Add status indicator emoji
-                if self.enable_emojis:
-                    if key in self.metric_history and len(self.metric_history[key]) > 0:
-                        status = self.trend_analyzer.analyze(self.metric_history[key], key)
-                        row.append(status)
-                    else:
-                        row.append("")
+                value = combined_values.get(key, self.metrics.get(key, ""))
+                if value is None or value == "None" or value == "":
+                    continue
 
-            table.add_row(*row)
+                display_name = METRIC_DISPLAY_NAMES.get(key, key)
+                displayed_metrics.add(key)
+                group_rows.append((f"  {display_name}", str(value)))
+
+            if group_rows:
+                # Add group header
+                table.add_row(f"[bold cyan]{group_name}[/]", "")
+                for name, val in group_rows:
+                    table.add_row(name, val)
 
         return table
 

@@ -19,6 +19,13 @@
 #    - Original/default initialization approach
 #    - Uses a circular mask as the initialization target
 #
+# TODO(SYNTHETIC-APERTURE-INIT): Data-driven initialization not yet working
+#    - Change to: --initialization_target synthetic_aperture
+#    - Issue: Shape mismatch between model output and telescope grid (1024 vs 2048)
+#    - The trainer's physics-consistent loss has resolution/padding issues
+#    - Fix needed in: prism/core/trainers.py (lines ~270-297)
+#    - Implementation exists in: prism/core/instruments/four_f_base.py
+#
 # 2. Modern Pattern Function System (--pattern-fn builtin:fermat)
 #    - Newer, more flexible pattern specification system
 #    - Supports both builtin patterns and custom pattern files
@@ -60,7 +67,7 @@ echo "======================================================================"
 echo "Run Name: $RUN_NAME"
 echo ""
 echo "Novel Features Enabled:"
-echo "  ✓ Circle Initialization (original approach)"
+echo "  ✓ Circle Initialization (default)"
 echo "  ✓ Modern Pattern Function System"
 echo "  ✓ Fraunhofer Propagation (far-field)"
 echo "  ✓ Training Profiler (performance analysis)"
@@ -70,7 +77,7 @@ echo ""
 uv run python main.py \
     --name "$RUN_NAME" \
     --obj_name europa \
-    --n_samples 240 \
+    --n_samples 64 \
     --image_size 1024 \
     --sample_diameter 17 \
     --sample_sort center \

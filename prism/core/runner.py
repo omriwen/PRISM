@@ -495,11 +495,14 @@ class PRISMRunner:
                 for i in range(0, len(self.sample_centers), batch_size):
                     batch_centers = self.sample_centers[i : i + batch_size]
                     for center_pos in batch_centers:
-                        # Convert center to list format expected by get_measurements
+                        # sample_centers has shape (n_samples, n_points, 2)
+                        # Extract the first point's coordinates (shape: [2])
+                        point = center_pos[0] if center_pos.ndim == 2 else center_pos
+                        # Convert to list format expected by get_measurements
                         center_coords: list[float] = (
-                            list(center_pos.tolist())
-                            if hasattr(center_pos, "tolist")
-                            else [float(x) for x in center_pos]
+                            point.tolist()
+                            if hasattr(point, "tolist")
+                            else [float(x) for x in point]
                         )
                         meas = self.measurement_system.get_measurements(
                             self.image, [center_coords], add_noise=False
