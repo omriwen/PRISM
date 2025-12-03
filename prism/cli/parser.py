@@ -547,6 +547,27 @@ def create_main_parser() -> argparse.ArgumentParser:
         help="Sensor type: 'full_frame', 'aps_c', '1_inch'",
     )
 
+    # Natural Language Configuration
+    nl_group = parser.add_argument_group("Natural Language Configuration")
+    nl_group.add_argument(
+        "--instruction",
+        "-i",
+        type=str,
+        default=None,
+        metavar="TEXT",
+        help="Natural language instruction (e.g., 'train europa with lr 0.01')",
+    )
+    nl_group.add_argument(
+        "--auto-confirm",
+        action="store_true",
+        help="Skip confirmation prompt for parsed instructions",
+    )
+    nl_group.add_argument(
+        "--show-parse-only",
+        action="store_true",
+        help="Show parsed configuration and exit (don't run experiment)",
+    )
+
     # Default parameters
     parser.set_defaults(
         invert_image=False,

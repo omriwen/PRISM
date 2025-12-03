@@ -70,6 +70,15 @@ uv run python main.py --obj_name europa --checkpoint experiment_name --name resu
 # Alternative PIE algorithm for comparison
 uv run python main_epie.py --obj_name europa --n_samples 100 --name epie_baseline
 
+# Natural language configuration
+uv run python main.py --instruction "train europa with lr 0.01 using fresnel"
+
+# Skip confirmation (for scripts)
+uv run python main.py --instruction "quick test on titan" --auto-confirm
+
+# Preview parsed config without running
+uv run python main.py --instruction "production quality run" --show-parse-only
+
 # Run tests
 uv run pytest tests/ -v
 

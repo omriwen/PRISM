@@ -61,6 +61,16 @@ def main() -> None:
     parser = create_main_parser()
     args = parser.parse_args()
 
+    # %% Handle natural language instruction
+    if args.instruction:
+        from prism.config.natural_language import process_instruction
+
+        args = process_instruction(args, interactive=not args.auto_confirm)
+        if args is None:
+            sys.exit(0)
+        if getattr(args, "show_parse_only", False):
+            sys.exit(0)
+
     # %% Handle interactive mode (must happen first - replaces args entirely)
     if args.interactive:
         from prism.config.interactive import run_interactive_setup
