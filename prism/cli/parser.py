@@ -547,25 +547,41 @@ def create_main_parser() -> argparse.ArgumentParser:
         help="Sensor type: 'full_frame', 'aps_c', '1_inch'",
     )
 
-    # Natural Language Configuration
-    nl_group = parser.add_argument_group("Natural Language Configuration")
-    nl_group.add_argument(
-        "--instruction",
+    # AI Configuration arguments
+    ai_group = parser.add_argument_group("AI Configuration")
+    ai_group.add_argument(
+        "--base",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to base config file (.yaml, .json, or .sh) for AI configuration",
+    )
+    ai_group.add_argument(
         "-i",
+        "--instruction",
         type=str,
         default=None,
         metavar="TEXT",
-        help="Natural language instruction (e.g., 'train europa with lr 0.01')",
+        help="Natural language instruction to modify configuration (requires ollama)",
     )
-    nl_group.add_argument(
+    ai_group.add_argument(
         "--auto-confirm",
+        dest="auto_confirm",
         action="store_true",
-        help="Skip confirmation prompt for parsed instructions",
+        help="Skip confirmation prompt for AI-suggested changes",
     )
-    nl_group.add_argument(
+    ai_group.add_argument(
         "--show-parse-only",
+        dest="show_parse_only",
         action="store_true",
-        help="Show parsed configuration and exit (don't run experiment)",
+        help="Display parsed configuration and exit (dry run)",
+    )
+    ai_group.add_argument(
+        "--ai-model",
+        type=str,
+        default="llama3.2:3b",
+        metavar="MODEL",
+        help="Ollama model to use for AI configuration (default: llama3.2:3b)",
     )
 
     # Default parameters
@@ -584,6 +600,8 @@ def create_main_parser() -> argparse.ArgumentParser:
         is_point_source=False,
         dashboard=False,
         profile=False,
+        auto_confirm=False,
+        show_parse_only=False,
     )
 
     return parser

@@ -85,6 +85,56 @@ def main() -> None:
         # Continue with normal flow (args now contains user choices)
         args = args_interactive
 
+    # %% Handle AI configuration (after parsing but before other processing)
+    if args.instruction:
+        from prism.config.ai_config import AIConfigurator
+
+        try:
+            configurator = AIConfigurator(parser, model=args.ai_model)
+
+            # 1. Load base configuration
+            if args.base:
+                from loguru import logger
+
+                base_config = configurator.load_base(args.base)
+                logger.info(f"Loaded base config from: {args.base}")
+            else:
+                base_config = args
+
+            # 2. Get delta from LLM
+            from loguru import logger
+
+            logger.info(f"Processing instruction: {args.instruction}")
+            delta = configurator.get_delta(args.instruction, base_config)
+
+            # 3. Show proposed changes
+            configurator.show_delta(delta, base_config)
+
+            # 4. Handle show-parse-only mode
+            if args.show_parse_only:
+                sys.exit(0)
+
+            # 5. Confirm changes (unless auto-confirm)
+            if delta.changes:
+                if args.auto_confirm or configurator.confirm_delta(delta):
+                    args = configurator.apply_delta(base_config, delta.changes)
+                    logger.info("Applied AI configuration changes")
+                else:
+                    logger.info("Changes rejected by user")
+                    sys.exit(0)
+
+        except ConnectionError as e:
+            from loguru import logger
+
+            logger.error(str(e))
+            logger.info("Hint: Start ollama with: ollama serve")
+            sys.exit(1)
+        except ValueError as e:
+            from loguru import logger
+
+            logger.error(f"AI configuration failed: {e}")
+            sys.exit(1)
+
     # %% Handle help topic flags (show detailed help and exit)
     if (
         args.help_propagator

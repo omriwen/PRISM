@@ -48,8 +48,12 @@ from .objects import (
     get_obj_params,
 )
 
-# Natural language configuration
-from .natural_language import process_instruction
+# AI configuration
+from .ai_config import (
+    AIConfigurator,
+    ArgumentSchema,
+    ConfigDelta,
+)
 
 
 __all__ = [
@@ -89,6 +93,8 @@ __all__ = [
     "config_to_args",
     "args_to_config",
     "merge_config_with_args",
-    # Natural language configuration
-    "process_instruction",
+    # AI configuration
+    "AIConfigurator",
+    "ArgumentSchema",
+    "ConfigDelta",
 ]
