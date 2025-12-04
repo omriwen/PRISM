@@ -10,8 +10,22 @@ Description:
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
+
+from loguru import logger
+
+
+def is_latex_available() -> bool:
+    """Check if LaTeX is available on the system.
+
+    Returns
+    -------
+    bool
+        True if LaTeX (latex executable) is found in PATH, False otherwise.
+    """
+    return shutil.which("latex") is not None
 
 
 @dataclass
@@ -93,8 +107,24 @@ class StyleConfig:
     use_latex: bool = False
 
     def apply(self) -> None:
-        """Apply style to matplotlib rcParams."""
+        """Apply style to matplotlib rcParams.
+
+        Notes
+        -----
+        If use_latex is True but LaTeX is not available on the system,
+        this method will log a warning and fall back to non-LaTeX rendering.
+        """
         import matplotlib.pyplot as plt
+
+        # Check LaTeX availability if requested
+        use_latex = self.use_latex
+        if use_latex and not is_latex_available():
+            logger.warning(
+                "LaTeX rendering requested but 'latex' not found in PATH. "
+                "Falling back to non-LaTeX rendering. "
+                "Install LaTeX (e.g., texlive-latex-base) for publication-quality text."
+            )
+            use_latex = False
 
         plt.rcParams.update(
             {
@@ -107,7 +137,7 @@ class StyleConfig:
                 "lines.linewidth": self.line_width,
                 "lines.markersize": self.marker_size,
                 "grid.alpha": self.grid_alpha,
-                "text.usetex": self.use_latex,
+                "text.usetex": use_latex,
             }
         )
 

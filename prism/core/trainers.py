@@ -267,34 +267,17 @@ class PRISMTrainer:
                         if self.use_amp:
                             with torch.cuda.amp.autocast():
                                 output = self.model()
-                                # Physics-consistent loss for synthetic_aperture
-                                if (
-                                    self.args.initialization_target == "synthetic_aperture"
-                                    and telescope is not None
-                                    and sample_centers is not None
-                                ):
-                                    # Transform model output through telescope to measurement space
-                                    output_sa = telescope.compute_synthetic_aperture(
-                                        output, sample_centers, return_complex=False
-                                    )
-                                    loss = criterion(output_sa, measurement) / init_denominator
-                                else:
-                                    loss = criterion(output, measurement) / init_denominator
+                                # FIXME(SYNTHETIC-APERTURE-INIT): Physics-consistent loss disabled
+                                # Shape mismatch: model outputs at image_size (1024) but telescope
+                                # uses padded grid (2048). Need to either:
+                                # 1. Resize output_sa to match measurement shape, or
+                                # 2. Ensure telescope.compute_synthetic_aperture preserves input shape
+                                # For now, use direct comparison (works but less physics-accurate)
+                                loss = criterion(output, measurement) / init_denominator
                         else:
                             output = self.model()
-                            # Physics-consistent loss for synthetic_aperture
-                            if (
-                                self.args.initialization_target == "synthetic_aperture"
-                                and telescope is not None
-                                and sample_centers is not None
-                            ):
-                                # Transform model output through telescope to measurement space
-                                output_sa = telescope.compute_synthetic_aperture(
-                                    output, sample_centers, return_complex=False
-                                )
-                                loss = criterion(output_sa, measurement) / init_denominator
-                            else:
-                                loss = criterion(output, measurement) / init_denominator
+                            # FIXME(SYNTHETIC-APERTURE-INIT): See comment above
+                            loss = criterion(output, measurement) / init_denominator
 
                     loss_value = float(loss.item())
 
@@ -446,8 +429,10 @@ class PRISMTrainer:
         profiler = self._get_profiler()
 
         with TrainingProgress() as training_progress:
-            epoch_task_id = training_progress.add_task("Training Epochs", total=epoch_total_steps)
-            sample_task_id = training_progress.add_task("Samples", total=sample_total_steps)
+            epoch_task_id = training_progress.add_task(
+                f"Sample 1/{self.args.n_samples}",
+                total=epoch_total_steps
+            )
 
             # Check if adaptive convergence is enabled
             use_adaptive = getattr(self.args, "enable_adaptive_convergence", True)
@@ -609,44 +594,27 @@ class PRISMTrainer:
                         epoch_steps_completed += 1
                         eta_seconds = epoch_eta.update(epoch_steps_completed)
 
-                        # Build metrics dict with convergence monitor data if available
+                        # Build metrics dict for dashboard display (other metrics logged to TensorBoard)
                         epoch_metrics: dict[str, float | str | None] = {
-                            "phase": "training",
                             "sample": center_idx + 1,
                             "n_samples": self.args.n_samples,
                             "epoch": total_epochs_this_sample,
                             "max_epochs": self.args.max_epochs * self.args.n_epochs,
                             "loss_old": loss_old_value,
                             "loss_new": loss_new_value,
-                            "tier": current_tier.value if use_adaptive else "n/a",
                             "lr": self.optimizer.param_groups[0]["lr"],
-                            "base_lr": base_lr,
-                            "scheduler": (
-                                "plateau"
-                                if isinstance(self.scheduler, ReduceLROnPlateau)
-                                else "cosine"
-                            ),
-                            "elapsed": time.time() - t0,
-                            "wall_time": time.time() - self.training_start_time,
+                            "elapsed": time.time() - self.training_start_time,
                         }
-
-                        # Add convergence monitor metrics (always tracked)
-                        stats = monitor.get_statistics()
-                        epoch_metrics["epochs_since_best"] = stats["epochs_since_improvement"]
-                        epoch_metrics["best_loss"] = stats["best_loss"]
-                        epoch_metrics["loss_velocity"] = monitor.loss_velocity()
 
                         # Add GPU memory if CUDA available
                         if torch.cuda.is_available():
-                            epoch_metrics["gpu_mem_mb"] = (
-                                torch.cuda.memory_allocated() / 1024 / 1024
-                            )
+                            epoch_metrics["gpu_mem_mb"] = torch.cuda.memory_allocated() / 1024 / 1024
 
                         training_progress.advance(
                             epoch_task_id,
                             metrics=epoch_metrics,  # type: ignore[arg-type]
                             eta_seconds=eta_seconds,
-                            description=f"Sample {center_idx + 1}/{self.args.n_samples}",
+                            description=f"Sample {center_idx + 1}/{self.args.n_samples} | Epoch {total_epochs_this_sample}",
                         )
 
                         # Check for convergence (standard check)
@@ -747,23 +715,9 @@ class PRISMTrainer:
 
                 sample_steps_completed += 1
                 eta_seconds = sample_eta.update(sample_steps_completed)
-                training_progress.advance(
-                    sample_task_id,
-                    metrics={
-                        "phase": "evaluation",
-                        "sample": center_idx + 1,
-                        "n_samples": self.args.n_samples,
-                        "loss": float(loss.item()),
-                        "ssim": ssim,
-                        "rmse": rmse,
-                        "psnr": psnr_value,
-                        "lr": self.lr_history[-1],
-                        "sample_time": self.sample_times[-1],
-                        "wall_time": time.time() - self.training_start_time,
-                    },
-                    eta_seconds=eta_seconds,
-                    description=f"Samples {sample_steps_completed}/{self.args.n_samples}",
-                )
+
+                # Update dashboard with SSIM after sample evaluation completes
+                training_progress.update_metrics({"ssim": ssim})
 
                 # Log sample completion (avoid print() which interferes with Rich Live)
                 logger.debug(
@@ -825,8 +779,6 @@ class PRISMTrainer:
 
             training_progress.set_total(epoch_task_id, max(epoch_steps_completed, 1))
             training_progress.complete(epoch_task_id)
-            training_progress.set_total(sample_task_id, max(sample_steps_completed, 1))
-            training_progress.complete(sample_task_id)
 
         return self._create_results_dict(pattern_metadata, pattern_spec)
 
