@@ -30,7 +30,7 @@ import pytest
 import torch
 from torch import Tensor
 
-from spids.core.telescope import Telescope
+from prism.core.telescope import Telescope
 
 
 class TestTelescope:
@@ -130,7 +130,7 @@ def test_data_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def small_telescope():
     """Create small telescope for fast tests."""
-    from spids.core.telescope import Telescope
+    from prism.core.telescope import Telescope
     return Telescope(n=64, r=5)
 ```
 
@@ -154,7 +154,7 @@ def test_telescope_sizes(n: int, r: int, expected: tuple[int, int]) -> None:
 ```python
 def test_fft_inverse_property() -> None:
     """Test FFT followed by IFFT returns original."""
-    from spids.utils.transforms import fft, ifft
+    from prism.utils.transforms import fft, ifft
 
     image = torch.randn(1, 1, 256, 256)
     result = ifft(fft(image))
@@ -164,7 +164,7 @@ def test_fft_inverse_property() -> None:
 
 def test_fft_parseval_theorem() -> None:
     """Test Parseval's theorem: energy preserved in FFT."""
-    from spids.utils.transforms import fft
+    from prism.utils.transforms import fft
 
     image = torch.randn(1, 1, 256, 256)
 
@@ -179,7 +179,7 @@ def test_fft_parseval_theorem() -> None:
 ```python
 def test_invalid_input_shape() -> None:
     """Test function raises error for invalid input shape."""
-    from spids.core.telescope import Telescope
+    from prism.core.telescope import Telescope
 
     tel = Telescope(n=256, r=10)
     invalid_input = torch.randn(256, 256)  # Missing batch and channel dims
@@ -190,7 +190,7 @@ def test_invalid_input_shape() -> None:
 
 def test_empty_centers_list() -> None:
     """Test handling of empty centers list."""
-    from spids.core.telescope import Telescope
+    from prism.core.telescope import Telescope
 
     tel = Telescope(n=256, r=10)
     image = torch.randn(1, 1, 256, 256)
@@ -210,8 +210,8 @@ For testing data flow:
 
 def test_complete_training_cycle(tmp_path: Path) -> None:
     """Test end-to-end training completes successfully."""
-    from spids.training import Trainer
-    from spids.config import ExperimentConfig
+    from prism.training import Trainer
+    from prism.config import ExperimentConfig
 
     # Minimal config for fast test
     config = ExperimentConfig(
@@ -236,13 +236,13 @@ from unittest.mock import Mock, patch
 
 def test_with_mocked_telescope() -> None:
     """Test using mocked telescope for isolated testing."""
-    from spids.models import SpidsNet
+    from prism.models import ProgressiveDecoder
 
     mock_telescope = Mock()
     mock_telescope.return_value = torch.ones(1, 1, 256, 256)
 
-    with patch('spids.models.Telescope', return_value=mock_telescope):
-        model = SpidsNet()
+    with patch('prism.models.Telescope', return_value=mock_telescope):
+        model = ProgressiveDecoder()
         result = model()
 
         assert result.shape == (1, 1, 256, 256)
@@ -273,7 +273,7 @@ uv run pytest
 uv run pytest tests/unit/test_telescope.py
 
 # Run with coverage
-uv run pytest --cov=spids --cov-report=html
+uv run pytest --cov=prism --cov-report=html
 
 # Run only parametrized tests
 uv run pytest -k "test_mask_radius"

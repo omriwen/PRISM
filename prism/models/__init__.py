@@ -1,4 +1,4 @@
-"""Neural network models for SPIDS."""
+"""Neural network models for PRISM."""
 
 from __future__ import annotations
 

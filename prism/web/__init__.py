@@ -1,4 +1,4 @@
-"""SPIDS Web Dashboard module."""
+"""PRISM Web Dashboard module."""
 
 from __future__ import annotations
 

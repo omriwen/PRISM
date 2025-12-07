@@ -156,8 +156,8 @@ def calculate_distance(
 ### PyTorch nn.Module
 
 ```python
-class SpidsNet(nn.Module):
-    """Generative network for sparse phase imaging.
+class ProgressiveDecoder(nn.Module):
+    """Generative network for progressive reconstruction from sparse measurements.
 
     This decoder-only architecture generates phase and amplitude images
     from a learned latent vector, progressively upsampling from 1x1 to
@@ -184,7 +184,7 @@ class SpidsNet(nn.Module):
 
     Examples
     --------
-    >>> model = SpidsNet(output_size=256)
+    >>> model = ProgressiveDecoder(output_size=256)
     >>> output = model()  # Generate from latent
     >>> output.shape
     torch.Size([1, 2, 256, 256])
@@ -201,7 +201,7 @@ class SpidsNet(nn.Module):
         output_size: int = 256,
         use_complex: bool = False
     ) -> None:
-        """Initialize SpidsNet."""
+        """Initialize ProgressiveDecoder."""
         super().__init__()
         # ...
 
@@ -223,7 +223,7 @@ class SpidsNet(nn.Module):
 
         Examples
         --------
-        >>> model = SpidsNet(output_size=256)
+        >>> model = ProgressiveDecoder(output_size=256)
         >>> output = model()  # Use learned latent
         >>> output.shape
         torch.Size([1, 2, 256, 256])
@@ -262,7 +262,7 @@ def train_step(
 
     Examples
     --------
-    >>> model = SpidsNet()
+    >>> model = ProgressiveDecoder()
     >>> optimizer = torch.optim.Adam(model.parameters())
     >>> data = torch.randn(8, 1, 256, 256)
     >>> loss, metrics = train_step(model, data, optimizer)
@@ -321,7 +321,7 @@ def grid(self, value: Tensor) -> None:
     self._grid = value
 ```
 
-## SPIDS-Specific Patterns
+## PRISM-Specific Patterns
 
 ### Telescope/Optics Functions
 
@@ -519,7 +519,7 @@ Check docstring quality:
 uv add --dev pydocstyle
 
 # Check docstrings
-pydocstyle spids/
+pydocstyle prism/
 
 # Sphinx can build from docstrings
 uv add --dev sphinx

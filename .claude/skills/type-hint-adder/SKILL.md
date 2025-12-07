@@ -211,13 +211,13 @@ class Aggregator:
         self.grid = grid
 ```
 
-## SPIDS-Specific Type Aliases
+## PRISM-Specific Type Aliases
 
 Create these in a types.py module:
 
 ```python
-# spids/types.py
-"""Type definitions for SPIDS project."""
+# prism/types.py
+"""Type definitions for PRISM project."""
 
 from typing import TypeAlias
 from torch import Tensor
@@ -243,7 +243,7 @@ class ImageConfig:
     # ...
 ```
 
-## Common Patterns for SPIDS
+## Common Patterns for PRISM
 
 ### FFT Functions
 
@@ -276,7 +276,7 @@ def ifft(tensor: Tensor, norm: str = 'ortho') -> Tensor:
 ### Model Forward Methods
 
 ```python
-class SpidsNet(nn.Module):
+class ProgressiveDecoder(nn.Module):
     def forward(
         self,
         obj_size: Optional[int] = None
@@ -333,7 +333,7 @@ After adding type hints, validate with mypy:
 uv add --dev mypy
 
 # Run type checking
-uv run mypy spids/
+uv run mypy prism/
 
 # Configuration in pyproject.toml
 [tool.mypy]

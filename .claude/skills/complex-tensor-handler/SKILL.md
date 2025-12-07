@@ -1,6 +1,6 @@
 ---
 name: complex-tensor-handler
-description: Handle complex-valued tensors in PyTorch for astronomical imaging applications. This skill should be used when working with Fourier transforms, phase/amplitude representations, and complex arithmetic in SPIDS.
+description: Handle complex-valued tensors in PyTorch for astronomical imaging applications. This skill should be used when working with Fourier transforms, phase/amplitude representations, and complex arithmetic in PRISM.
 ---
 
 # Complex Tensor Handler
@@ -9,7 +9,7 @@ Work with complex-valued tensors in PyTorch for astronomical imaging, including 
 
 ## Purpose
 
-SPIDS deals with complex-valued images (phase + amplitude or real + imaginary). This skill provides patterns for correctly handling complex tensors in PyTorch.
+PRISM deals with complex-valued images (phase + amplitude or real + imaginary). This skill provides patterns for correctly handling complex tensors in PyTorch.
 
 ## When to Use
 
@@ -187,7 +187,7 @@ def from_real_imag(real: Tensor, imag: Tensor) -> Tensor:
     return torch.complex(real, imag)
 ```
 
-## SPIDS-Specific Patterns
+## PRISM-Specific Patterns
 
 ### Generate Complex Image
 

@@ -17,9 +17,9 @@ This document provides baseline performance metrics for the PRISM (Progressive R
 | **FFT Forward Pass** | 0.0055s avg | 100 iterations, first pass: 0.54s (CUDA initialization) |
 | **FFT Inverse Pass** | 0.0005s avg | 100 iterations |
 | **FFT Round-trip** | 0.0013s avg | 100 iterations |
-| **Model Forward (inference)** | 0.0064s avg | 50 iterations, GenCropSpidsNet |
+| **Model Forward (inference)** | 0.0064s avg | 50 iterations, ProgressiveDecoder |
 | **Model Forward (training)** | 0.0057s avg | 10 iterations, with gradient computation |
-| **Model Initialization** | 0.2652s | GenCropSpidsNet creation time |
+| **Model Initialization** | 0.2652s | ProgressiveDecoder creation time |
 | **Peak FFT Memory** | 28.00 MB | GPU memory for FFT operations |
 | **Peak Model Memory** | 67.64 MB | GPU memory with gradients |
 
@@ -76,7 +76,7 @@ Peak memory: 28.00 MB
 
 ### 2. Model Operations
 
-The GenCropSpidsNet model is the core neural network for reconstruction.
+The ProgressiveDecoder model is the core neural network for reconstruction.
 
 #### Timing Metrics
 
@@ -118,7 +118,7 @@ Peak memory: 67.64 MB
 #### Model Architecture Details
 
 ```python
-GenCropSpidsNet Configuration (1024x1024):
+ProgressiveDecoder Configuration (1024x1024):
 - Input size: 1024
 - Output size: 512 (default half of input)
 - Decoder-only architecture

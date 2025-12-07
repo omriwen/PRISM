@@ -843,6 +843,131 @@ class FourFSystem(Instrument, ABC):
             radius=radius,
         )
 
+    def compute_synthetic_aperture(
+        self,
+        tensor: Tensor,
+        all_centers: "Union[Tensor, List[List[float]]]",
+        r: Optional[float] = None,
+        return_complex: bool = False,
+        batch_size: int = 100,
+    ) -> Tensor:
+        """Compute synthetic aperture by averaging all diffraction patterns in k-space.
+
+        This pre-computes measurements for all aperture positions and averages them
+        in Fourier space to create a synthetic aperture preview. This is physically
+        equivalent to having all apertures open simultaneously.
+
+        Parameters
+        ----------
+        tensor : Tensor
+            Input object image [B, C, H, W] or [H, W]
+        all_centers : Tensor or List[List[float]]
+            ALL aperture centers, shape [N, 2] or [N, n_points, 2]
+        r : float, optional
+            Aperture radius override. If None, uses configured radius.
+        return_complex : bool, default=False
+            If True, return complex field; if False, return intensity.
+        batch_size : int, default=100
+            Process centers in batches to manage memory.
+
+        Returns
+        -------
+        Tensor
+            Synthetic aperture reconstruction, same shape as input.
+            Real-valued intensity if return_complex=False.
+
+        Notes
+        -----
+        This method is available on all FourFSystem subclasses (Telescope,
+        Microscope, Camera) as the synthetic aperture concept applies to
+        any system that samples different regions of k-space.
+
+        .. todo:: REFACTOR-PROPAGATION-AGNOSTIC
+            Current implementation is tightly coupled to k-space/4f approach.
+            Should support pluggable propagation strategies:
+            1. 'kspace' (current): Fast k-space accumulation for simple 4f
+            2. 'forward': Use instrument.forward() for each center - works with
+               any propagation model (Fresnel, aberrations, etc.) but slower
+            Add `method` parameter and factor out k-space logic into overridable
+            `_compute_synthetic_aperture_kspace()` method.
+        """
+        # TODO(REFACTOR-PROPAGATION-AGNOSTIC): See docstring above
+        with torch.no_grad():
+            # Handle input dimensions
+            squeeze_output = False
+            if tensor.ndim == 2:
+                tensor = tensor.unsqueeze(0).unsqueeze(0)
+                squeeze_output = True
+            elif tensor.ndim == 3:
+                tensor = tensor.unsqueeze(0)
+                squeeze_output = True
+
+            # Convert centers to tensor if needed
+            if isinstance(all_centers, list):
+                all_centers = torch.tensor(all_centers, device=tensor.device)
+
+            # Handle 3D centers (n_samples, n_points, 2) - extract first point
+            if all_centers.ndim == 3:
+                all_centers = all_centers[:, 0, :]  # Take first point of each sample
+
+            # Get k-space representation of object
+            tensor_f = self.propagate_to_kspace(tensor)
+
+            # Ensure proper shape for accumulation
+            if tensor_f.ndim == 2:
+                tensor_f = tensor_f.unsqueeze(0).unsqueeze(0)
+            elif tensor_f.ndim == 3:
+                tensor_f = tensor_f.unsqueeze(0)
+
+            # Initialize accumulated field
+            accumulated_field = torch.zeros_like(tensor_f, dtype=torch.cfloat)
+
+            # Process centers - use batch method if available, else single
+            num_centers = len(all_centers)
+            device = tensor_f.device
+            if hasattr(self, "generate_aperture_masks"):
+                # Batch processing available (e.g., Telescope, Microscope)
+                num_batches = (num_centers + batch_size - 1) // batch_size
+                for batch_idx in range(num_batches):
+                    start_idx = batch_idx * batch_size
+                    end_idx = min((batch_idx + 1) * batch_size, num_centers)
+                    batch_centers = all_centers[start_idx:end_idx]
+                    masks = self.generate_aperture_masks(batch_centers, radius=r)
+                    masks = masks.to(device)
+                    for mask in masks:
+                        if mask.ndim == 2:
+                            mask = mask.unsqueeze(0).unsqueeze(0)
+                        accumulated_field = accumulated_field + tensor_f * mask
+            else:
+                # Fall back to single mask generation
+                for center in all_centers:
+                    center_list = center.tolist() if hasattr(center, "tolist") else list(center)
+                    mask = self.generate_aperture_mask(center=center_list, radius=r)
+                    mask = mask.to(device)
+                    if mask.ndim == 2:
+                        mask = mask.unsqueeze(0).unsqueeze(0)
+                    accumulated_field = accumulated_field + tensor_f * mask
+
+            # Average the accumulated field
+            accumulated_field = accumulated_field / num_centers
+
+            # Transform back to spatial domain
+            if return_complex:
+                import torch.fft as fft_module
+
+                result = fft_module.ifft2(
+                    fft_module.ifftshift(accumulated_field, dim=(-2, -1)),
+                    dim=(-2, -1),
+                )
+            else:
+                result = self.propagate_to_spatial(accumulated_field)
+
+            # Restore original dimensions if needed
+            if squeeze_output:
+                result = result.squeeze()
+
+            return result.detach()
+
     def compute_psf(self, **kwargs: Any) -> Tensor:
         """Compute point spread function.
 

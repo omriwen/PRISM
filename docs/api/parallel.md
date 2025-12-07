@@ -118,7 +118,7 @@ Returns:
     nn.Module: The potentially parallelized model
 
 Example:
-    >>> model = GenCropSpidsNet()
+    >>> model = ProgressiveDecoder()
     >>> # Only parallelize if 2+ GPUs available
     >>> model = parallelize_if_available(model, min_gpus=2)
 
@@ -161,7 +161,7 @@ Returns:
     nn.Module: The parallelized model (or original if no parallelization needed)
 
 Example:
-    >>> model = GenCropSpidsNet()
+    >>> model = ProgressiveDecoder()
     >>> model = setup_parallel_model(model)
     >>> # Model is now ready for multi-GPU training
 

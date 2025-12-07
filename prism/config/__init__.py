@@ -48,6 +48,13 @@ from .objects import (
     get_obj_params,
 )
 
+# AI configuration
+from .ai_config import (
+    AIConfigurator,
+    ArgumentSchema,
+    ConfigDelta,
+)
+
 
 __all__ = [
     # Length scales
@@ -86,4 +93,8 @@ __all__ = [
     "config_to_args",
     "args_to_config",
     "merge_config_with_args",
+    # AI configuration
+    "AIConfigurator",
+    "ArgumentSchema",
+    "ConfigDelta",
 ]

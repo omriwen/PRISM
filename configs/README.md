@@ -17,7 +17,7 @@ uv run python main.py --preset production --obj titan --name titan_prod
 uv run python main.py --preset high_quality --obj betelgeuse --name hq
 
 # Mo-PIE baseline (traditional phase retrieval)
-uv run python main_mopie.py --preset mopie_baseline --obj europa --name mopie_test
+uv run python main.py --algorithm mopie --preset mopie_baseline --obj europa --name mopie_test
 
 # List all available presets
 python main.py --list-presets
@@ -31,11 +31,11 @@ python main.py --show-preset production
 For an even easier experience, use the interactive configuration wizard:
 
 ```bash
-# Launch interactive mode
+# Launch interactive mode (PRISM)
 python main.py --interactive
 
 # Or for Mo-PIE
-python main_mopie.py --interactive
+python main.py --algorithm mopie --interactive
 ```
 
 The wizard guides you through:
@@ -362,11 +362,11 @@ python main.py --config configs/my_snr_study.yaml --name snr_study_30db
 
 ### Compare deep learning vs traditional Mo-PIE
 ```bash
-# Deep learning approach
-python main.py --preset production --obj europa --name dl_approach
+# Deep learning approach (PRISM)
+python main.py --algorithm prism --preset production --obj europa --name dl_approach
 
 # Traditional Mo-PIE
-python main_mopie.py --preset mopie_baseline --obj europa --name mopie_approach
+python main.py --algorithm mopie --preset mopie_baseline --obj europa --name mopie_approach
 ```
 
 ## Troubleshooting

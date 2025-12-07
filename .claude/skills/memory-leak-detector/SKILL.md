@@ -257,12 +257,12 @@ gc.collect()
 objgraph.show_most_common_types(limit=20)
 ```
 
-## SPIDS-Specific Leak Patterns
+## PRISM-Specific Leak Patterns
 
 ### Visualization Loops
 
 ```python
-# LEAK - SPIDS visualization during training
+# LEAK - PRISM visualization during training
 for sample_idx in range(n_samples):
     measurement = telescope.measure(image, centers[sample_idx])
 

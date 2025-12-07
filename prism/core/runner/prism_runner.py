@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from prism.core.instruments import Telescope, TelescopeConfig
 from prism.core.measurement_system import MeasurementSystem
 from prism.core.pattern_loader import load_and_generate_pattern
 from prism.core.pattern_preview import preview_pattern
+from prism.core.runner.base import AbstractRunner, ExperimentResult
 from prism.core.trainers import PRISMTrainer
 from prism.models.networks import ProgressiveDecoder
 from prism.utils.image import generate_point_sources, load_image
@@ -40,7 +42,7 @@ from prism.visualization import (
 )
 
 
-class PRISMRunner:
+class PRISMRunner(AbstractRunner):
     """
     Orchestrates SPIDS experiment from setup to completion.
 
@@ -66,12 +68,8 @@ class PRISMRunner:
     >>> runner.run()
     """
 
-    def __init__(self, args: Any):
-        self.args = args
-        self.device: torch.device | None = None
-        self.log_dir: str | None = None
-        self.writer: SummaryWriter | None = None
-        self.config: Any = None
+    def __init__(self, args: Any) -> None:
+        super().__init__(args)
 
         # Components
         self.telescope: Telescope | None = None
@@ -118,7 +116,7 @@ class PRISMRunner:
         # Set log directory
         if self.args.name is None:
             self.args.name = self.args.start_time
-        self.log_dir = os.path.join(self.args.log_dir, self.args.name)
+        self.log_dir = Path(os.path.join(self.args.log_dir, self.args.name))
 
         # Create configuration object
         self.config = args_to_config(self.args)
@@ -126,16 +124,16 @@ class PRISMRunner:
         # Setup logging and save directories
         if self.args.save_data:
             os.makedirs(self.log_dir)
-            log_file_path = Path(self.log_dir) / "training.log"
+            log_file_path = self.log_dir / "training.log"
             setup_logging(
                 level=self.args.log_level, log_file=log_file_path, show_time=True, show_level=True
             )
             logger.info(f"Logging to: {self.log_dir}/training.log")
-            self.writer = SummaryWriter(self.log_dir)
-            save_config(self.config, os.path.join(self.log_dir, "config.yaml"))
+            self.writer = SummaryWriter(str(self.log_dir))
+            save_config(self.config, str(self.log_dir / "config.yaml"))
             logger.info(f"Configuration saved to: {self.log_dir}/config.yaml")
 
-    def load_image_and_pattern(self) -> None:
+    def load_data(self) -> None:
         """Load input image and generate sampling pattern."""
         # Calculate pixel size
         self.args.dx = (
@@ -193,8 +191,8 @@ class PRISMRunner:
         # Preview mode
         if hasattr(self.args, "preview_pattern") and self.args.preview_pattern:
             logger.info(f"Previewing pattern: {self.pattern_spec}")
-            preview_dir = self.log_dir if (self.args.save_data and self.log_dir) else "."
-            preview_save_path = Path(preview_dir) / "pattern_preview.png"
+            preview_dir = self.log_dir if (self.args.save_data and self.log_dir) else Path(".")
+            preview_save_path = preview_dir / "pattern_preview.png"
             preview_result = preview_pattern(
                 self.pattern_spec, self.config.telescope, save_path=preview_save_path
             )
@@ -247,11 +245,15 @@ class PRISMRunner:
             assert self.log_dir is not None, "Log directory must be set when save_data is True"
             torch.save(
                 {"centers": self.sample_centers, "diameter": self.args.sample_diameter},
-                os.path.join(self.log_dir, "sample_points.pt"),
+                str(self.log_dir / "sample_points.pt"),
             )
 
-    def create_model_and_telescope(self) -> None:
-        """Initialize model and telescope components."""
+    def load_image_and_pattern(self) -> None:
+        """Backward compatibility alias for load_data()."""
+        self.load_data()
+
+    def create_components(self) -> None:
+        """Initialize model, telescope, and trainer components."""
         # Configure line sampling
         samples_per_line_meas, dsnr = configure_line_sampling(
             self.args, self.args.sample_length, self.args.sample_diameter
@@ -386,7 +388,49 @@ class PRISMRunner:
         )
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode="min", factor=0.5, patience=10)
 
+        # Create profiler if requested
+        callbacks = []
+        if getattr(self.args, "profile", False):
+            from prism.profiling import ProfilerConfig, TrainingProfiler
+
+            config = ProfilerConfig(enabled=True)
+            self.profiler = TrainingProfiler(config)
+            callbacks = [self.profiler.callback]
+            logger.info("Profiling enabled")
+
+        # Create trainer
+        assert self.model is not None, "Model must be created before trainer"
+        assert self.optimizer is not None, "Optimizer must be created before trainer"
+        assert self.scheduler is not None, "Scheduler must be created before trainer"
+        assert self.measurement_system is not None, (
+            "MeasurementSystem must be created before trainer"
+        )
+        assert self.device is not None, "Device must be set before trainer"
+
+        self.trainer = PRISMTrainer(
+            model=self.model,
+            optimizer=self.optimizer,
+            scheduler=self.scheduler,
+            measurement_system=self.measurement_system,
+            args=self.args,
+            device=self.device,
+            log_dir=str(self.log_dir) if self.log_dir else None,
+            writer=self.writer,
+            use_amp=getattr(self.args, "use_mixed_precision", False),
+            callbacks=callbacks,
+        )
+
         logger.info("System prepared, starting training...")
+
+    def create_model_and_telescope(self) -> None:
+        """Backward compatibility alias for create_components()."""
+        self.create_components()
+
+    def create_trainer(self) -> None:
+        """Backward compatibility - trainer creation is now part of create_components()."""
+        # Trainer is now created in create_components(), but keep this method
+        # for backward compatibility with checkpoint loading workflow
+        pass
 
     def load_checkpoint_if_needed(self) -> bool:
         """Load checkpoint if specified. Returns True if checkpoint loaded."""
@@ -408,40 +452,41 @@ class PRISMRunner:
         logger.info(f"Loaded checkpoint from {self.args.checkpoint}")
         return True
 
-    def create_trainer(self) -> None:
-        """Create trainer instance."""
-        assert self.model is not None, "Model must be created before trainer"
-        assert self.optimizer is not None, "Optimizer must be created before trainer"
-        assert self.scheduler is not None, "Scheduler must be created before trainer"
-        assert self.measurement_system is not None, (
-            "MeasurementSystem must be created before trainer"
-        )
-        assert self.device is not None, "Device must be set before trainer"
+    def run_experiment(self) -> ExperimentResult:
+        """Run initialization and progressive training, returning results."""
+        assert self.trainer is not None, "Trainer must be created"
+        assert self.sample_centers is not None, "Sample centers must be generated"
+        assert self.image is not None, "Image must be loaded"
+        assert self.image_gt is not None, "Ground truth image must be loaded"
+        assert self.telescope is not None, "Telescope must be created"
+        assert self.measurement_system is not None, "MeasurementSystem must be created"
 
-        # Create profiler if requested
-        callbacks = []
-        if getattr(self.args, "profile", False):
-            from prism.profiling import ProfilerConfig, TrainingProfiler
+        # Track start time
+        training_start_time = time.time()
 
-            config = ProfilerConfig(enabled=True)
-            self.profiler = TrainingProfiler(config)
-            callbacks = [self.profiler.callback]
-            logger.info("Profiling enabled")
+        # Run initialization
+        figure = self._run_initialization()
 
-        self.trainer = PRISMTrainer(
-            model=self.model,
-            optimizer=self.optimizer,
-            scheduler=self.scheduler,
-            measurement_system=self.measurement_system,
-            args=self.args,
-            device=self.device,
+        # Run progressive training
+        self._run_training(figure=figure)
+
+        # Calculate elapsed time
+        elapsed_time = time.time() - training_start_time
+
+        # Create result
+        result = ExperimentResult(
+            ssims=self.trainer.ssims,
+            psnrs=self.trainer.psnrs,
+            rmses=self.trainer.rmses,
+            final_reconstruction=self.trainer.current_reconstruction,
             log_dir=self.log_dir,
-            writer=self.writer,
-            use_amp=getattr(self.args, "use_mixed_precision", False),
-            callbacks=callbacks,
+            elapsed_time=elapsed_time,
+            failed_samples=self.trainer.failed_samples if self.trainer.failed_samples else [],
         )
 
-    def run_initialization(self) -> Any:
+        return result
+
+    def _run_initialization(self) -> Any:
         """Run initialization phase and return figure handle."""
         assert self.sample_centers is not None, "Sample centers must be generated"
         assert self.telescope is not None, "Telescope must be created"
@@ -482,8 +527,6 @@ class PRISMRunner:
             elif self.args.initialization_target == "synthetic_aperture":
                 # Compute synthetic aperture from ALL sample positions
                 # This is an advanced feature - compute by averaging multiple measurements
-                import time
-
                 logger.info(
                     f"Computing synthetic aperture preview from {len(self.sample_centers)} positions..."
                 )
@@ -495,11 +538,14 @@ class PRISMRunner:
                 for i in range(0, len(self.sample_centers), batch_size):
                     batch_centers = self.sample_centers[i : i + batch_size]
                     for center_pos in batch_centers:
-                        # Convert center to list format expected by get_measurements
+                        # sample_centers has shape (n_samples, n_points, 2)
+                        # Extract the first point's coordinates (shape: [2])
+                        point = center_pos[0] if center_pos.ndim == 2 else center_pos
+                        # Convert to list format expected by get_measurements
                         center_coords: list[float] = (
-                            list(center_pos.tolist())
-                            if hasattr(center_pos, "tolist")
-                            else [float(x) for x in center_pos]
+                            point.tolist()
+                            if hasattr(point, "tolist")
+                            else [float(x) for x in point]
                         )
                         meas = self.measurement_system.get_measurements(
                             self.image, [center_coords], add_noise=False
@@ -536,7 +582,11 @@ class PRISMRunner:
         )
         return figure
 
-    def run_training(self, figure: Any = None) -> dict[str, Any]:
+    def run_initialization(self) -> Any:
+        """Backward compatibility alias for _run_initialization()."""
+        return self._run_initialization()
+
+    def _run_training(self, figure: Any = None) -> dict[str, Any]:
         """Run progressive training and return results."""
         assert self.trainer is not None, "Trainer must be created"
         assert self.sample_centers is not None, "Sample centers must be generated"
@@ -554,12 +604,20 @@ class PRISMRunner:
         )
         return results
 
-    def save_final_checkpoint(self) -> None:
+    def run_training(self, figure: Any = None) -> dict[str, Any]:
+        """Backward compatibility alias for _run_training()."""
+        return self._run_training(figure=figure)
+
+    def save_results(self, result: ExperimentResult) -> None:
+        """Save final checkpoint and visualization figures."""
+        self._save_final_checkpoint()
+        self._save_profile_if_needed()
+        self._save_final_figures()
+
+    def _save_final_checkpoint(self) -> None:
         """Save final checkpoint for single-sample runs."""
         if self.args.n_samples > 1 or not self.args.save_data:
             return
-
-        import time
 
         assert self.log_dir is not None, "Log directory must be set"
         assert self.model is not None, "Model must be created"
@@ -567,7 +625,7 @@ class PRISMRunner:
         assert self.optimizer is not None, "Optimizer must be created"
         assert self.trainer is not None, "Trainer must be created"
 
-        save_args(self.args, self.log_dir)
+        save_args(self.args, str(self.log_dir))
         save_checkpoint(
             {
                 "model": self.model.state_dict(),
@@ -596,10 +654,14 @@ class PRISMRunner:
                 "pattern_metadata": self.pattern_metadata,
                 "pattern_spec": self.pattern_spec,
             },
-            os.path.join(self.log_dir, "checkpoint.pt"),
+            str(self.log_dir / "checkpoint.pt"),
         )
 
-    def save_profile_if_needed(self) -> None:
+    def save_final_checkpoint(self) -> None:
+        """Backward compatibility alias for _save_final_checkpoint()."""
+        self._save_final_checkpoint()
+
+    def _save_profile_if_needed(self) -> None:
         """Save profiling data if profiling was enabled."""
         if self.profiler is None:
             return
@@ -609,13 +671,17 @@ class PRISMRunner:
             output_path = Path(self.args.profile_output)
         else:
             assert self.log_dir is not None, "Log directory must be set when profiling"
-            output_path = Path(self.log_dir) / "profile.pt"
+            output_path = self.log_dir / "profile.pt"
 
         # Save profile
         self.profiler.save(output_path)
         logger.info(f"Profile saved to {output_path}")
 
-    def save_final_figures(self) -> None:
+    def save_profile_if_needed(self) -> None:
+        """Backward compatibility alias for _save_profile_if_needed()."""
+        self._save_profile_if_needed()
+
+    def _save_final_figures(self) -> None:
         """Generate and save final visualization figures."""
         if not self.args.save_data:
             return
@@ -641,7 +707,7 @@ class PRISMRunner:
                 static_measurement=static_measurement,
                 obj_size=self.args.obj_size,
             )
-            plotter.save(os.path.join(self.log_dir, "final_reconstruction.png"))
+            plotter.save(str(self.log_dir / "final_reconstruction.png"))
 
         with SyntheticAperturePlotter(PUBLICATION) as plotter:
             plotter.plot(
@@ -649,7 +715,7 @@ class PRISMRunner:
                 telescope_agg=self.measurement_system,  # MeasurementSystem is compatible
                 roi_diameter=self.args.roi_diameter,
             )
-            plotter.save(os.path.join(self.log_dir, "synthetic_aperture.png"))
+            plotter.save(str(self.log_dir / "synthetic_aperture.png"))
 
         with LearningCurvesPlotter(PUBLICATION) as plotter:
             plotter.plot(
@@ -657,9 +723,13 @@ class PRISMRunner:
                 ssims=self.trainer.ssims,
                 psnrs=self.trainer.psnrs,
             )
-            plotter.save(os.path.join(self.log_dir, "learning_curves.png"))
+            plotter.save(str(self.log_dir / "learning_curves.png"))
 
         logger.info(f"Final figures saved to: {self.log_dir}")
+
+    def save_final_figures(self) -> None:
+        """Backward compatibility alias for _save_final_figures()."""
+        self._save_final_figures()
 
     def start_dashboard_if_requested(self) -> None:
         """Launch dashboard if --dashboard flag is set."""
@@ -708,8 +778,8 @@ class PRISMRunner:
         # Stop dashboard first
         self.stop_dashboard()
 
-        if self.writer is not None:
-            self.writer.close()
+        # Call parent cleanup (closes writer)
+        super().cleanup()
 
         # Log final summary
         if self.args.n_samples > 1 and self.trainer and self.trainer.failed_samples:
@@ -723,7 +793,7 @@ class PRISMRunner:
             logger.info("Training completed successfully")
         print("~~~~~~~~~~~~~~~~~~~~~~~~~ Finished training ~~~~~~~~~~~~~~~~~~~~~~~~~")  # noqa: T201
 
-    def run(self) -> None:
+    def run(self) -> ExperimentResult:
         """Run complete SPIDS experiment."""
         try:
             self.setup()
@@ -731,26 +801,33 @@ class PRISMRunner:
             # Start dashboard if requested (after setup, so log_dir is available)
             self.start_dashboard_if_requested()
 
-            self.load_image_and_pattern()
-            self.create_model_and_telescope()
+            self.load_data()
+            self.create_components()
 
             # Load checkpoint if specified
             checkpoint_loaded = self.load_checkpoint_if_needed()
 
             if not checkpoint_loaded:
-                self.create_trainer()
-                figure = self.run_initialization()
-                self.run_training(figure=figure)
-                self.save_final_checkpoint()
+                result = self.run_experiment()
             else:
-                # Checkpoint loaded - skip initialization
-                self.create_trainer()
-                self.run_training(figure=None)
+                # Checkpoint loaded - skip initialization, just run training
+                training_start_time = time.time()
+                self._run_training(figure=None)
+                elapsed_time = time.time() - training_start_time
 
-            # Save profiling data if enabled
-            self.save_profile_if_needed()
+                # Create result
+                result = ExperimentResult(
+                    ssims=self.trainer.ssims,
+                    psnrs=self.trainer.psnrs,
+                    rmses=self.trainer.rmses,
+                    final_reconstruction=self.trainer.current_reconstruction,
+                    log_dir=self.log_dir,
+                    elapsed_time=elapsed_time,
+                    failed_samples=self.trainer.failed_samples if self.trainer.failed_samples else [],
+                )
 
-            self.save_final_figures()
+            self.save_results(result)
+            return result
         finally:
             # Ensure cleanup happens even if training fails
             self.cleanup()

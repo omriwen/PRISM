@@ -129,7 +129,7 @@ result = image * mask  # Automatically broadcasts [H,W] to [B,C,H,W]
 # Speedup: ~100x
 ```
 
-## SPIDS-Specific Vectorizations
+## PRISM-Specific Vectorizations
 
 ### Telescope Sampling Loop
 

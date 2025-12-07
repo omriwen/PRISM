@@ -17,16 +17,12 @@
   "context": {
     "root": ".",
     "include": [
-      "*.py",
-      "models.py",
-      "optics.py",
-      "sampling.py",
-      "image_utils.py",
-      "visualization.py",
-      "consts_and_criteria.py",
+      "prism/**/*.py",
+      "main.py",
+      "main_mopie.py",
       "pyproject.toml",
       "uv.lock",
-      "CLAUDE.md",
+      "AI_ASSISTANT_GUIDE.md",
       "README.md"
     ],
     "exclude": [
@@ -50,9 +46,9 @@
   "domain": {
     "type": "astronomical_imaging",
     "architecture": "progressive_neural_training",
-    "data_flow": "Telescope Measurements → Progressive Training → GenCropSpidsNet → High-Resolution Reconstruction",
+    "data_flow": "Telescope Measurements → Progressive Training → ProgressiveDecoder → High-Resolution Reconstruction",
     "core_models": [
-      "GenCropSpidsNet", "TelescopeAgg", "LossAgg", "Telescope"
+      "ProgressiveDecoder", "MeasurementSystem", "LossAggregator", "Telescope"
     ],
     "sampling_patterns": ["fermat", "star", "random"],
     "astronomical_objects": ["europa", "titan", "betelgeuse", "neptune"],
@@ -88,12 +84,12 @@
       "coverage": "uv run pytest --cov=. --cov-report=html"
     },
     "lint": {
-      "ruff": "uv run ruff check .",
-      "black": "uv run black .",
-      "isort": "uv run isort ."
+      "check": "uv run ruff check prism/ tests/",
+      "fix": "uv run ruff check --fix prism/ tests/",
+      "format": "uv run ruff format prism/ tests/"
     },
     "typecheck": {
-      "pyright": "uv run pyright"
+      "mypy": "uv run mypy prism/"
     }
   },
 
@@ -103,10 +99,10 @@
       "uv add torch torchvision numpy scipy matplotlib opencv-python-headless pillow plotly seaborn pyyaml jupyter notebook tensorboard"
     ],
     "/test": ["uv run pytest -q"],
-    "/fmt": ["uv run ruff check --fix .", "uv run black .", "uv run isort ."],
+    "/fmt": ["uv run ruff check --fix prism/ tests/", "uv run ruff format prism/ tests/"],
     "/main": ["uv run python main.py --obj_name europa --n_samples 100 --fermat --name test_run"],
     "/quick": ["uv run python main.py --obj_name europa --n_samples 64 --sample_length 64 --samples_per_line_meas 9 --max_epochs 1 --fermat --debug --name quick_test"],
-    "/epie": ["uv run python main_epie.py --obj_name europa --n_samples 100 --name epie_baseline"],
+    "/mopie": ["uv run python main_mopie.py --obj_name europa --n_samples 100 --fermat --name mopie_baseline"],
     "/tensorboard": ["tensorboard --logdir runs/"],
     "/kernel-install": ["uv run python -m ipykernel install --user --name PRISM --display-name PRISM"],
     "/kernel-list": ["jupyter kernelspec list"],
@@ -114,9 +110,9 @@
   },
 
   "coding_style": {
-    "docstring_style": "google",
+    "docstring_style": "numpy",
     "type_hints": "required",
-    "line_length": 88,
+    "line_length": 100,
     "prefer_vectorized": "Use PyTorch/numpy operations over Python loops",
     "error_handling": "Specific exceptions, validate tensor shapes and physics parameters",
     "imports": "Group: stdlib, third-party, local"
