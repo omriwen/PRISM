@@ -4,19 +4,35 @@ from __future__ import annotations
 
 from prism.cli.animate import animate_command, create_animate_parser
 from prism.cli.dashboard import create_dashboard_parser, dashboard_command
+from prism.cli.entry_points import (
+    create_unified_parser,
+    main,
+    main_mopie,
+    main_prism,
+)
 from prism.cli.parser import create_main_parser, create_mopie_parser
 from prism.cli.report import add_report_parser, report_command
 
 
 __all__ = [
+    # Parsers
     "create_main_parser",
     "create_mopie_parser",
+    "create_unified_parser",
+    # Unified entry points
+    "main",
+    "main_prism",
+    "main_mopie",
+    # Dashboard
     "create_dashboard_parser",
     "dashboard_command",
+    # Animate
     "create_animate_parser",
     "animate_command",
+    # Report
     "add_report_parser",
     "report_command",
+    # Profile (lazy loaded)
     "create_profile_parser",
     "profile_command",
 ]
