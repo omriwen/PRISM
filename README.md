@@ -153,11 +153,11 @@ For quick testing (sparse sampling for fast iteration):
 uv run python main.py --obj_name europa --n_samples 64 --sample_length 64 --samples_per_line_meas 9 --max_epochs 1 --fermat --debug --name quick_test
 ```
 
-### Alternative ePIE Algorithm
+### Alternative Mo-PIE Algorithm
 
-For comparison with traditional phase retrieval:
+For comparison with traditional phase retrieval (Mo-PIE: Motion-aware Ptychographic Iterative Engine):
 ```bash
-uv run python main_epie.py --obj_name europa --n_samples 100 --name epie_baseline
+uv run python main_mopie.py --obj_name europa --n_samples 100 --fermat --name mopie_baseline
 ```
 
 ### Monitoring Training

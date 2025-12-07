@@ -1,4 +1,4 @@
-"""Utility functions for SPIDS."""
+"""Utility functions for PRISM."""
 
 # Image operations
 

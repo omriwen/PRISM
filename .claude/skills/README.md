@@ -1,6 +1,6 @@
-## PRISM Refactoring Skills
+## PRISM Development Skills
 
-This directory contains custom skills designed to support the PRISM project refactoring described in `REFACTORING_PLAN.md`.
+This directory contains custom skills to support PRISM development and code quality.
 
 ## Available Skills
 
@@ -22,7 +22,7 @@ This directory contains custom skills designed to support the PRISM project refa
    - Use ~50+ times throughout refactoring
 
 4. **code-formatter** ⭐⭐
-   - Format code with black, ruff, isort
+   - Format code with ruff (check + format)
    - Set up pre-commit hooks
    - Ensure consistent code style
 
@@ -62,13 +62,13 @@ This directory contains custom skills designed to support the PRISM project refa
 Skills are invoked automatically by Claude Code when relevant, or you can explicitly request them:
 
 ```
-User: "Extract the Grid class from optics.py to core/grid.py"
+User: "Extract the Grid class from prism/core/grid.py to a new module"
 Claude: [Uses module-extractor skill]
 
-User: "Add type hints to the telescope module"
+User: "Add type hints to prism/core/telescope.py"
 Claude: [Uses type-hint-adder skill]
 
-User: "Format all Python files"
+User: "Format all Python files in prism/"
 Claude: [Uses code-formatter skill]
 ```
 
@@ -92,27 +92,24 @@ Claude: [Uses code-formatter skill]
 
 ## Related Documentation
 
-- See `REFACTORING_PLAN.md` for the complete 6-phase refactoring plan
-- See `SKILLS_AND_SUBAGENTS_PLAN.md` for detailed skill and subagent specifications
+- See `REFACTORING_DESIGN_DOCUMENT.md` for architecture refactoring plans
 - See `AI_ASSISTANT_GUIDE.md` for PRISM project-specific development guidelines
 
 ## Implementation Status
 
-Created:
-- ✅ module-extractor
+All skills have been created:
+- ✅ module-extractor (template - needs content)
 - ✅ import-updater
 - ✅ git-commit-maker
 - ✅ code-formatter
 - ✅ type-hint-adder
 - ✅ unit-test-generator
 - ✅ torch-shape-validator
-
-To be created:
-- ⏳ docstring-formatter
-- ⏳ dead-code-finder
-- ⏳ loop-vectorizer
-- ⏳ memory-leak-detector
-- ⏳ Additional skills as needed
+- ✅ docstring-formatter
+- ✅ dead-code-finder
+- ✅ loop-vectorizer
+- ✅ memory-leak-detector
+- ✅ complex-tensor-handler (PRISM-specific)
 
 ## Contributing
 

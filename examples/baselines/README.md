@@ -1,20 +1,20 @@
 # Baseline Algorithms for Comparison
 
-This directory contains reference implementations of alternative algorithms for comparison with SPIDS.
+This directory contains reference implementations of alternative algorithms for comparison with PRISM.
 
 ## Mo-PIE Baseline
 
 ### Active Implementation
 
-**Use [main_mopie.py](../../main_mopie.py) at the project root** - This is the current, working Mo-PIE implementation integrated with the modern SPIDS codebase.
+**Use [main_mopie.py](../../main_mopie.py) at the project root** - This is the current, working Mo-PIE implementation integrated with the modern PRISM codebase.
 
 ### Historical Implementation
 
-[mopie_baseline.py](mopie_baseline.py) - Historical Mo-PIE implementation from legacy codebase. **Note**: This file uses old import paths and requires updates to work with the refactored spids package structure. Use `main_mopie.py` instead for a working Mo-PIE baseline.
+[mopie_baseline.py](mopie_baseline.py) - Historical Mo-PIE implementation from legacy codebase. **Note**: This file uses old import paths and requires updates to work with the refactored prism package structure. Use `main_mopie.py` instead for a working Mo-PIE baseline.
 
 ### Algorithm Overview
 
-Traditional phase retrieval algorithm using iterative projections. This is a physics-based optimization approach that alternately updates the object and probe estimates, unlike SPIDS which uses a generative neural network.
+Traditional phase retrieval algorithm using iterative projections. This is a physics-based optimization approach that alternately updates the object and probe estimates, unlike PRISM which uses a generative neural network.
 
 **Mo-PIE (Motion-aware Ptychographic Iterative Engine)**:
 - Iterative phase retrieval method
@@ -22,8 +22,8 @@ Traditional phase retrieval algorithm using iterative projections. This is a phy
 - Physics-based constraints (Fourier ptychography)
 - No neural network - pure optimization
 
-**Key Differences from SPIDS**:
-| Aspect | SPIDS | Mo-PIE |
+**Key Differences from PRISM**:
+| Aspect | PRISM | Mo-PIE |
 |--------|-------|------|
 | Approach | Deep learning (generative model) | Iterative optimization |
 | Model | Neural network decoder | Direct object/probe update |
@@ -62,17 +62,17 @@ uv run python main_mopie.py \
 - `--fix_probe`: Fix probe (don't update), only estimate object
 - `--name`: Experiment name for saving results
 
-### Comparing SPIDS vs Mo-PIE
+### Comparing PRISM vs Mo-PIE
 
 Run both algorithms on the same configuration:
 
 ```bash
-# 1. Run SPIDS
+# 1. Run PRISM
 uv run python main.py \
     --obj_name europa \
     --n_samples 100 \
     --fermat \
-    --name spids_europa_comparison
+    --name prism_europa_comparison
 
 # 2. Run Mo-PIE
 uv run python main_mopie.py \
@@ -83,7 +83,7 @@ uv run python main_mopie.py \
 
 # 3. Compare results
 # Both save to runs/ directory
-# - runs/spids_europa_comparison/
+# - runs/prism_europa_comparison/
 # - runs/mopie_europa_comparison/
 
 # Load and compare metrics:
@@ -97,13 +97,13 @@ uv run python main_mopie.py \
 
 **Reconstruction Quality**:
 - Mo-PIE typically achieves good quality with sufficient iterations
-- SPIDS may be faster but requires more samples initially
+- PRISM may be faster but requires more samples initially
 - Quality depends on sampling pattern and number of measurements
 
 **Computational Cost**:
 - Mo-PIE: ~0.1-1 second per iteration per sample
-- SPIDS: Slower training but faster inference
-- Mo-PIE better for small experiments, SPIDS better at scale
+- PRISM: Slower training but faster inference
+- Mo-PIE better for small experiments, PRISM better at scale
 
 ### Output Structure
 
@@ -144,6 +144,6 @@ Example algorithms to consider:
 
 - Baselines maintained for scientific validation
 - Code quality may vary (historical implementations)
-- Use same test objects as SPIDS for fair comparison
+- Use same test objects as PRISM for fair comparison
 - Consider sampling pattern effects (Fermat vs random)
 - Report multiple metrics (SSIM, RMSE, convergence time)

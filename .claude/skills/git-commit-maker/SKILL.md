@@ -14,7 +14,7 @@ Good commit messages are essential for project history and collaboration. This s
 ## When to Use
 
 Use this skill when:
-- Completing a refactoring step (50+ commits during SPIDS refactoring)
+- Completing a refactoring step (50+ commits during PRISM refactoring)
 - Need to create descriptive commit messages
 - Following conventional commits standard
 - Working in a team requiring consistent commit format
@@ -45,7 +45,7 @@ Use this skill when:
 
 ```bash
 # Feature
-git commit -m "feat(models): add GenCropSpidsNet with automatic cropping"
+git commit -m "feat(models): add ProgressiveDecoder with automatic cropping"
 
 # Refactoring
 git commit -m "refactor(optics): extract Telescope class to core/telescope.py"
@@ -112,7 +112,7 @@ Extract Grid class from monolithic optics.py to improve module organization.
 This is part of Phase 2 restructuring to create proper package hierarchy.
 
 Changes:
-- Create spids/core/grid.py with Grid class
+- Create prism/core/grid.py with Grid class
 - Update imports in optics.py
 - Add Grid export to core/__init__.py
 - Update tests to import from new location
@@ -122,7 +122,7 @@ EOF
 )"
 ```
 
-## Scopes for SPIDS Project
+## Scopes for PRISM Project
 
 Common scopes during refactoring:
 
@@ -152,8 +152,8 @@ git diff --staged
 
 ```bash
 # Stage specific files
-git add spids/core/telescope.py
-git add spids/core/__init__.py
+git add prism/core/telescope.py
+git add prism/core/__init__.py
 
 # Stage all changes (use cautiously)
 git add .
@@ -181,9 +181,9 @@ git commit -m "$(cat <<'EOF'
 refactor(models): split into networks, losses, and layers modules
 
 Split monolithic models.py into focused modules:
-- spids/models/networks.py: SpidsNet, GenCropSpidsNet
-- spids/models/losses.py: LossAgg
-- spids/models/layers.py: CBatchNorm, ComplexAct, CropPad
+- prism/models/networks.py: ProgressiveDecoder
+- prism/models/losses.py: LossAgg
+- prism/models/layers.py: CBatchNorm, ComplexAct, CropPad
 
 Improves code organization and maintainability.
 EOF

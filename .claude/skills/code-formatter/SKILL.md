@@ -30,13 +30,13 @@ The uncompromising Python code formatter:
 uv run black file.py
 
 # Format directory
-uv run black spids/
+uv run black prism/
 
 # Check without modifying
-uv run black --check spids/
+uv run black --check prism/
 
 # Show what would change
-uv run black --diff spids/
+uv run black --diff prism/
 ```
 
 ### Ruff - Fast Linter
@@ -45,13 +45,13 @@ Extremely fast Python linter:
 
 ```bash
 # Lint and auto-fix
-uv run ruff check spids/ --fix
+uv run ruff check prism/ --fix
 
 # Just check
-uv run ruff check spids/
+uv run ruff check prism/
 
 # Specific rules
-uv run ruff check spids/ --select E,F,W
+uv run ruff check prism/ --select E,F,W
 ```
 
 ### isort - Import Organizer
@@ -60,13 +60,13 @@ Sorts imports automatically:
 
 ```bash
 # Sort imports
-uv run isort spids/
+uv run isort prism/
 
 # Check only
-uv run isort --check spids/
+uv run isort --check prism/
 
 # Show diff
-uv run isort --diff spids/
+uv run isort --diff prism/
 ```
 
 ## Configuration
@@ -131,7 +131,7 @@ sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 
 ```bash
 # Format everything
-uv run black spids/ && uv run isort spids/ && uv run ruff check spids/ --fix
+uv run black prism/ && uv run isort prism/ && uv run ruff check prism/ --fix
 ```
 
 ### Create Formatting Script
@@ -142,13 +142,13 @@ uv run black spids/ && uv run isort spids/ && uv run ruff check spids/ --fix
 set -e
 
 echo "Running black..."
-uv run black spids/ tests/
+uv run black prism/ tests/
 
 echo "Running isort..."
-uv run isort spids/ tests/
+uv run isort prism/ tests/
 
 echo "Running ruff..."
-uv run ruff check spids/ tests/ --fix
+uv run ruff check prism/ tests/ --fix
 
 echo "✓ Formatting complete"
 ```
@@ -232,12 +232,12 @@ import torch
 from torch import nn, Tensor
 
 # Local imports
-from spids.core.telescope import Telescope
-from spids.utils.transforms import fft, ifft
+from prism.core.telescope import Telescope
+from prism.utils.transforms import fft, ifft
 
 # Relative imports
 from .grid import Grid
-from ..models import SpidsNet
+from ..models import ProgressiveDecoder
 ```
 
 ### Line Length
@@ -275,7 +275,7 @@ After formatting, validate types:
 uv add --dev mypy
 
 # Run type checking
-uv run mypy spids/
+uv run mypy prism/
 
 # Configuration
 [tool.mypy]
@@ -321,7 +321,7 @@ jobs:
         run: uv run isort --check .
 
       - name: Run mypy
-        run: uv run mypy spids/
+        run: uv run mypy prism/
 ```
 
 ## Workflow
@@ -330,17 +330,17 @@ jobs:
 
 ```bash
 # 1. Format code
-uv run black spids/ tests/
-uv run isort spids/ tests/
+uv run black prism/ tests/
+uv run isort prism/ tests/
 
 # 2. Fix linting issues
-uv run ruff check spids/ tests/ --fix
+uv run ruff check prism/ tests/ --fix
 
 # 3. Check remaining issues
-uv run ruff check spids/ tests/
+uv run ruff check prism/ tests/
 
 # 4. Type check
-uv run mypy spids/
+uv run mypy prism/
 
 # 5. Run tests
 uv run pytest

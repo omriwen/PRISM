@@ -1,10 +1,10 @@
 # Paper Figures Generation
 
-Scripts to reproduce figures from SPIDS publications.
+Scripts to reproduce figures from PRISM publications.
 
 ## Overview
 
-This directory contains code for generating publication-quality figures for the SPIDS paper. The figures follow Optica Publishing Group guidelines and demonstrate:
+This directory contains code for generating publication-quality figures for the PRISM paper. The figures follow Optica Publishing Group guidelines and demonstrate:
 - Neural network architecture
 - Detector configuration and sampling trajectories
 - Validation results and resolution analysis
@@ -12,7 +12,7 @@ This directory contains code for generating publication-quality figures for the 
 ## Generated Figures
 
 ### Figure 1: Neural Network Architecture and Algorithm Flowchart
-- Network structure diagram (GenCropSpidsNet)
+- Network structure diagram (ProgressiveDecoder)
 - Progressive training algorithm flowchart
 - Shows latent vector, decoder, and measurement feedback loop
 
@@ -41,11 +41,11 @@ This directory contains code for generating publication-quality figures for the 
 
 ### Experiment Data
 
-The script requires completed SPIDS experiment runs. See [required_data.txt](required_data.txt) for specific experiments needed.
+The script requires completed PRISM experiment runs. See [required_data.txt](required_data.txt) for specific experiments needed.
 
 **Typical requirements**:
 1. Europa baseline (100 samples, Fermat spiral)
-2. Comparison experiments (SPIDS vs Mo-PIE)
+2. Comparison experiments (PRISM vs Mo-PIE)
 3. Multi-object validation runs (Europa, Titan, Betelgeuse, Neptune)
 4. Resolution scaling experiments (varying sample counts)
 
@@ -193,8 +193,8 @@ generator.create_figure_4(results)
 
 ⚠️ **Important**: These scripts are **frozen at publication time**
 
-- Scripts reflect SPIDS codebase at time of paper submission
-- May not work with current SPIDS versions if API changed
+- Scripts reflect PRISM codebase at time of paper submission
+- May not work with current PRISM versions if API changed
 - For reproducibility, use git tag corresponding to publication
 
 ### Using Publication Version
@@ -214,7 +214,7 @@ uv run python generate_figures.py
 
 To exactly reproduce published figures:
 
-1. Use same SPIDS version (git tag)
+1. Use same PRISM version (git tag)
 2. Use same random seeds (set in experiment configs)
 3. Use same experiment parameters
 4. Use same plotting parameters (DPI, fonts, colors)
@@ -241,10 +241,10 @@ Error: Experiment directory not found: runs/europa_baseline_100
 ### Import Errors
 
 ```
-ModuleNotFoundError: No module named 'spids'
+ModuleNotFoundError: No module named 'prism'
 ```
 
-**Solution**: Install SPIDS package
+**Solution**: Install PRISM package
 ```bash
 cd ../..
 uv sync
@@ -269,9 +269,9 @@ Large figures may require significant RAM. If running out of memory:
 
 **Status**: Frozen at publication version
 
-These scripts are maintained for reproducibility but frozen at the version used for the published paper. They may not be updated for new SPIDS features.
+These scripts are maintained for reproducibility but frozen at the version used for the published paper. They may not be updated for new PRISM features.
 
-For new figures using current SPIDS versions:
+For new figures using current PRISM versions:
 - Create new scripts in a dated subdirectory
 - Document differences from publication version
 - Maintain backward compatibility where possible
@@ -289,4 +289,4 @@ For new figures using current SPIDS versions:
 For questions about reproducing these figures:
 - Check git history: `git log examples/paper_figures/`
 - Review commit messages for changes
-- See main SPIDS documentation for general usage
+- See main PRISM documentation for general usage

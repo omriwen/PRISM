@@ -1764,6 +1764,91 @@ print(f"Epochs: {stats['epochs']}, Tier: {stats['tier']}")
 
 ---
 
+## Claude Code Integration
+
+### Slash Commands
+
+Claude Code provides custom slash commands for common workflows. Use these to accelerate development:
+
+#### Refactoring Commands
+
+| Command | Description |
+|---------|-------------|
+| `/refactor-status` | Show progress against REFACTORING_DESIGN_DOCUMENT.md phases. Reports which target components exist, phase completion status, and next recommended tasks. |
+| `/implement-task <task>` | Implement specific task(s) from a plan file. Supports ranges like `1.1-1.3` or comma-separated `1.1, 2.1, 3.1`. |
+| `/implement-parallel-group <group>` | Implement all tasks in a parallel execution group using multiple agents. |
+
+#### Analysis Commands
+
+| Command | Description |
+|---------|-------------|
+| `/compare-algorithms <obj> <n> [--fermat]` | Run PRISM vs Mo-PIE on same configuration and compare metrics (SSIM, PSNR, RMSE). Example: `/compare-algorithms europa 100 --fermat` |
+| `/analyze-checkpoint <path>` | Analyze checkpoint file showing metrics, training info, configuration, and quality assessment. Supports `--show-image` flag. |
+
+#### Planning Commands
+
+| Command | Description |
+|---------|-------------|
+| `/finalize-plan` | Validate and finalize an implementation plan. |
+| `/add-enhancement` | Add enhancement to an existing plan. |
+
+### Skills
+
+Skills provide specialized guidance for specific tasks. Available skills:
+
+#### Code Quality Skills
+
+| Skill | When to Use |
+|-------|-------------|
+| `code-formatter` | Before committing code to ensure consistent style |
+| `type-hint-adder` | When adding type hints to functions/methods |
+| `docstring-formatter` | When improving documentation with NumPy/Sphinx style |
+| `dead-code-finder` | During cleanup to remove unused code |
+
+#### Refactoring Skills
+
+| Skill | When to Use |
+|-------|-------------|
+| `module-extractor` | When breaking up large modules into smaller files |
+| `import-updater` | After moving/renaming modules to fix imports |
+| `architecture-reviewer` | When creating Runner/Trainer classes to verify patterns |
+
+#### PyTorch Skills
+
+| Skill | When to Use |
+|-------|-------------|
+| `torch-shape-validator` | When working with tensor operations to validate shapes |
+| `complex-tensor-handler` | When working with complex-valued tensors (Fourier, phase) |
+| `loop-vectorizer` | When optimizing Python loops to tensor operations |
+| `memory-leak-detector` | When debugging memory issues in training loops |
+
+#### Physics Skills
+
+| Skill | When to Use |
+|-------|-------------|
+| `physics-validator` | When configuring Telescope/Microscope/Camera to validate optical parameters (Fresnel numbers, resolution limits, Nyquist sampling) |
+
+#### Testing Skills
+
+| Skill | When to Use |
+|-------|-------------|
+| `unit-test-generator` | When creating pytest tests for functions/classes |
+| `git-commit-maker` | When creating well-formatted commit messages |
+
+### Using Skills
+
+To invoke a skill, simply mention it when asking for help:
+
+```
+"Use the physics-validator skill to check my telescope configuration"
+"Help me extract this class using the module-extractor skill"
+"Review this Runner using the architecture-reviewer skill"
+```
+
+Skills provide detailed workflows, checklists, and code examples specific to PRISM conventions.
+
+---
+
 ## GLOBAL RULES
 
 ### 🚫 FORBIDDEN

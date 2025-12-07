@@ -24,7 +24,7 @@ Use this skill when:
 
 Document what moved:
 - Old location: `optics.py`
-- New location: `spids/core/telescope.py`
+- New location: `prism/core/telescope.py`
 - Items moved: `Telescope`, `TelescopeAgg`
 
 ### Step 2: Find All Import Usages
@@ -52,7 +52,7 @@ For each file found, update imports systematically:
 from optics import Telescope
 
 # New
-from spids.core.telescope import Telescope
+from prism.core.telescope import Telescope
 ```
 
 #### Pattern 2: Update with alias
@@ -61,7 +61,7 @@ from spids.core.telescope import Telescope
 import optics
 
 # New
-from spids.core import telescope
+from prism.core import telescope
 ```
 
 #### Pattern 3: Multiple imports
@@ -70,8 +70,8 @@ from spids.core import telescope
 from optics import Telescope, TelescopeAgg, Grid
 
 # New
-from spids.core.telescope import Telescope, TelescopeAgg
-from spids.core.grid import Grid
+from prism.core.telescope import Telescope, TelescopeAgg
+from prism.core.grid import Grid
 ```
 
 ### Step 4: Handle Relative Imports
@@ -79,11 +79,11 @@ from spids.core.grid import Grid
 Within same package, use relative imports:
 
 ```python
-# In spids/core/aggregator.py importing from spids/core/telescope.py
+# In prism/core/aggregator.py importing from prism/core/telescope.py
 from .telescope import Telescope  # Preferred
 
 # Cross-package imports use absolute
-from spids.models.networks import SpidsNet
+from prism.models.networks import ProgressiveDecoder
 ```
 
 ### Step 5: Organize Imports
@@ -103,7 +103,7 @@ from torch import nn
 
 # Local application imports
 from .telescope import Telescope
-from ..models.networks import SpidsNet
+from ..models.networks import ProgressiveDecoder
 ```
 
 ### Step 6: Remove Unused Imports
@@ -124,7 +124,7 @@ python -m py_compile file.py
 pytest tests/
 
 # Try importing manually
-python -c "from spids.core.telescope import Telescope"
+python -c "from prism.core.telescope import Telescope"
 ```
 
 ## Import Patterns

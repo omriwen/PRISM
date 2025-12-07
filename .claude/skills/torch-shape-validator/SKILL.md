@@ -209,7 +209,7 @@ def apply_mask(image: Tensor, mask: Tensor) -> Tensor:
 ## Type Aliases for Complex Shapes
 
 ```python
-# spids/types.py
+# prism/types.py
 from typing import TypeAlias
 from torch import Tensor
 
@@ -236,7 +236,7 @@ def process(image: ImageBatch, mask: BinaryMask) -> ImageBatch:
 Create reusable validation functions:
 
 ```python
-# spids/utils/validation.py
+# prism/utils/validation.py
 """Tensor shape validation utilities."""
 
 from torch import Tensor
@@ -277,7 +277,7 @@ def forward(self, image: Tensor, mask: Tensor) -> Tensor:
 ## Shape Tracking in Complex Models
 
 ```python
-class SpidsNet(nn.Module):
+class ProgressiveDecoder(nn.Module):
     def __init__(self, size: int = 256):
         super().__init__()
         # Track shapes through network

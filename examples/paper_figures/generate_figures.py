@@ -166,8 +166,8 @@ class PaperFigureGenerator:
         return nrmse, psnr, ssim
 
     def load_spids(self, path, crop_r=1.2):
-        """SPIDS result loader following critical processing order"""
-        print(f"Loading SPIDS from: {path}")
+        """PRISM result loader following critical processing order"""
+        print(f"Loading PRISM from: {path}")
 
         # Step 1: Load experiment data
         args, checkpoint, sample_points = self.load_dir(path)
@@ -253,7 +253,7 @@ class PaperFigureGenerator:
         )
 
     def load_mopie(self, path, crop_r=1.2):
-        """Mo-PIE result loader with same processing order as SPIDS"""
+        """Mo-PIE result loader with same processing order as PRISM"""
         print(f"Loading Mo-PIE from: {path}")
 
         # Step 1: Load experiment data
@@ -319,7 +319,7 @@ class PaperFigureGenerator:
         )
 
     def load_data(self, n_samples=240, length=64, crop_r=1.2, spids_ext=None, mopie_ext=None):
-        """Unified comparison loader for both SPIDS and Mo-PIE results"""
+        """Unified comparison loader for both PRISM and Mo-PIE results"""
         spids_path = path_join("runs", f"gencrop_eur_nsamples_{n_samples}_len_{length}")
         mopie_path = path_join("runs", f"mopie_eur_nsamples_{n_samples}_len_{length}")
 

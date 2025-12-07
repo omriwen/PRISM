@@ -13,7 +13,7 @@ This document establishes the performance baseline for PRISM after completion of
 - **Image Size**: 512x512
 - **Object Size**: 128x128
 - **Samples**: 100
-- **Model**: GenCropSpidsNet
+- **Model**: ProgressiveDecoder (formerly GenCropSpidsNet)
 - **PyTorch**: GPU-accelerated
 
 ## Results

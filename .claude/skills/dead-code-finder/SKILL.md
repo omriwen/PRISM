@@ -92,13 +92,13 @@ if True:
 uv add --dev vulture
 
 # Find dead code
-vulture spids/
+vulture prism/
 
 # With confidence threshold
-vulture spids/ --min-confidence 80
+vulture prism/ --min-confidence 80
 
 # Ignore certain patterns
-vulture spids/ --ignore-names "test_*,_*"
+vulture prism/ --ignore-names "test_*,_*"
 ```
 
 ### 2. autoflake (Remove Unused Imports)
@@ -107,10 +107,10 @@ vulture spids/ --ignore-names "test_*,_*"
 uv add --dev autoflake
 
 # Check for unused imports
-autoflake --check --remove-all-unused-imports -r spids/
+autoflake --check --remove-all-unused-imports -r prism/
 
 # Remove unused imports
-autoflake --in-place --remove-all-unused-imports -r spids/
+autoflake --in-place --remove-all-unused-imports -r prism/
 ```
 
 ### 3. pylint (Unreachable Code)
@@ -119,7 +119,7 @@ autoflake --in-place --remove-all-unused-imports -r spids/
 uv add --dev pylint
 
 # Check for issues including dead code
-pylint spids/ --disable=all --enable=unreachable,unused-variable
+pylint prism/ --disable=all --enable=unreachable,unused-variable
 ```
 
 ## Systematic Cleanup Process
@@ -128,10 +128,10 @@ pylint spids/ --disable=all --enable=unreachable,unused-variable
 
 ```bash
 # Find Python comments (manual review)
-grep -rn "^[[:space:]]*#.*def\|^[[:space:]]*#.*class" spids/ --include="*.py"
+grep -rn "^[[:space:]]*#.*def\|^[[:space:]]*#.*class" prism/ --include="*.py"
 
 # Find large commented blocks
-grep -rn "^[[:space:]]*# " spids/ --include="*.py" | wc -l
+grep -rn "^[[:space:]]*# " prism/ --include="*.py" | wc -l
 ```
 
 Review and remove if:
@@ -148,17 +148,17 @@ Keep if:
 
 ```bash
 # Automatically remove
-autoflake --in-place --remove-all-unused-imports -r spids/
+autoflake --in-place --remove-all-unused-imports -r prism/
 
 # Or manually with ruff
-ruff check spids/ --select F401 --fix
+ruff check prism/ --select F401 --fix
 ```
 
 ### Step 3: Find Unused Functions
 
 ```bash
 # Use vulture
-vulture spids/ --min-confidence 60
+vulture prism/ --min-confidence 60
 
 # Review output
 # Confidence 100% = definitely unused
@@ -169,7 +169,7 @@ vulture spids/ --min-confidence 60
 
 ```bash
 # Pylint unreachable code
-pylint spids/ --disable=all --enable=unreachable
+pylint prism/ --disable=all --enable=unreachable
 ```
 
 ## Manual Review Patterns
@@ -208,7 +208,7 @@ def sample_data():
     return [1, 2, 3]
 ```
 
-## SPIDS-Specific Cleanup
+## PRISM-Specific Cleanup
 
 ### Remove Old Algorithm Code
 
@@ -254,13 +254,13 @@ Create a cleanup script:
 # cleanup_dead_code.sh
 
 echo "Removing unused imports..."
-autoflake --in-place --remove-all-unused-imports -r spids/
+autoflake --in-place --remove-all-unused-imports -r prism/
 
 echo "Finding dead code with vulture..."
-vulture spids/ --min-confidence 80 > dead_code_report.txt
+vulture prism/ --min-confidence 80 > dead_code_report.txt
 
 echo "Checking for unreachable code..."
-pylint spids/ --disable=all --enable=unreachable >> dead_code_report.txt
+pylint prism/ --disable=all --enable=unreachable >> dead_code_report.txt
 
 echo "Report saved to dead_code_report.txt"
 echo "Review and manually remove identified dead code."

@@ -1,6 +1,6 @@
-"""Type definitions for SPIDS.
+"""Type definitions for PRISM.
 
-This module provides type aliases and protocols used throughout the SPIDS codebase
+This module provides type aliases and protocols used throughout the PRISM codebase
 for better type safety and documentation.
 
 Protocols:
