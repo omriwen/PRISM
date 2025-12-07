@@ -62,7 +62,7 @@ class MockTrainingProgress:
 @contextmanager
 def disable_training_progress():
     """Context manager to disable TrainingProgress for integration tests."""
-    with patch("prism.core.trainers.TrainingProgress", MockTrainingProgress):
+    with patch("prism.core.trainers.progressive.TrainingProgress", MockTrainingProgress):
         yield
 
 

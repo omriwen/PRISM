@@ -10,6 +10,7 @@ from prism.core.trainers.base import (
     TrainingConfig,
     TrainingResult,
 )
+from prism.core.trainers.progressive import PRISMTrainer, create_scheduler
 
 __all__ = [
     "AbstractTrainer",
@@ -17,4 +18,6 @@ __all__ = [
     "MetricsCollector",
     "TrainingConfig",
     "TrainingResult",
+    "PRISMTrainer",
+    "create_scheduler",
 ]
