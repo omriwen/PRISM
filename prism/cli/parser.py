@@ -49,7 +49,7 @@ def create_main_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sample_diameter",
         type=float,
-        default=None,
+        default=17,
         help="Diameter of the telescope aperture [pix]",
     )
     parser.add_argument(
@@ -119,14 +119,14 @@ def create_main_parser() -> argparse.ArgumentParser:
         "'rand' - random sorting, "
         "'energy' - sort by energy",
     )
-    parser.add_argument("--n_samples", type=int, default=200, help="number of samples")
+    parser.add_argument("--n_samples", type=int, default=64, help="number of samples")
     parser.add_argument("--n_angs", type=int, default=4, help="number of angles")
 
     # Pattern function system
     parser.add_argument(
         "--pattern-fn",
         type=str,
-        default=None,
+        default="builtin:fermat",
         help="Pattern function: builtin:name (fermat/star/random) or /path/to/pattern.py",
     )
     parser.add_argument(
@@ -209,7 +209,7 @@ def create_main_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument(
-        "--loss_th", type=float, default=1e-3, help="Loss threshold for stopping the training"
+        "--loss_th", type=float, default=0.005, help="Loss threshold for stopping the training"
     )
     parser.add_argument(
         "--no-normalize-loss",
@@ -233,7 +233,7 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--adaptive-convergence",
         dest="enable_adaptive_convergence",
         action="store_true",
-        default=True,
+        default=False,
         help="Enable adaptive per-sample convergence (early exit, escalation, retries)",
     )
     parser.add_argument(
@@ -332,7 +332,7 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--propagator-method",
         type=str,
         choices=["auto", "fraunhofer", "fresnel", "angular_spectrum"],
-        default=None,
+        default="fraunhofer",
         help="Propagator method to use: 'auto' (automatic selection based on physics), "
         "'fraunhofer' (far-field), 'fresnel' (near-field), or 'angular_spectrum' (general purpose)",
     )
