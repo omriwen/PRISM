@@ -134,33 +134,24 @@ tensorboard --logdir runs/
    - Add measurement mask to aggregator
 3. **Convergence**: Monitor loss threshold and failed sample count
 
-### Essential Files
+### Project Structure
 
 ```
 PRISM/
-├── prism/                       # Main package
-│   ├── core/                   # Core algorithms
-│   │   ├── telescope.py        # Telescope simulation
-│   │   ├── aggregator.py       # Measurement aggregation
-│   │   └── trainers.py         # Training loops
-│   ├── models/                 # Neural architectures
-│   │   └── networks.py         # ProgressiveDecoder, LossAggregator
-│   ├── config/                 # Configuration management
-│   │   ├── constants.py        # Physical constants
-│   │   └── experiment.py       # Experiment config dataclass
-│   ├── utils/                  # Utilities
-│   │   ├── sampling.py         # K-space sampling patterns
-│   │   ├── transforms.py       # FFT/IFFT operations
-│   │   └── metrics.py          # SSIM, RMSE, PSNR
-│   ├── visualization/          # Plotting
-│   └── cli/                    # Command-line interface
-├── tests/                      # Test suite
-│   ├── unit/                  # Unit tests
-│   └── integration/           # Integration tests
-├── main.py                     # Unified entry point (--algorithm prism|mopie)
-├── main_mopie.py              # Deprecated: use main.py --algorithm mopie
-└── runs/                      # Experiment outputs
+├── prism/                  # Main package
+│   ├── core/              # Core algorithms (runners, trainers, instruments)
+│   ├── models/            # Neural network architectures
+│   ├── config/            # Configuration and constants
+│   ├── utils/             # Utilities (sampling, transforms, metrics)
+│   ├── visualization/     # Plotting
+│   ├── cli/               # Command-line interface
+│   └── web/               # Web dashboard
+├── tests/                  # Test suite (unit/ and integration/)
+├── main.py                 # Unified entry point (--algorithm prism|mopie)
+└── runs/                   # Experiment outputs (gitignored)
 ```
+
+Use the knowledge graph or code exploration for detailed file discovery.
 
 ---
 
@@ -1475,179 +1466,65 @@ ms = MeasurementSystem(microscope, config=config)
 
 ---
 
-## Knowledge Graph for Component Discovery (MANDATORY for Architectural Queries)
+## Knowledge Graph for Component Discovery
 
-PRISM uses a **knowledge graph** stored in `.memory/memory.jsonl` to index components, modules, configs, and their relationships. This enables **10x faster component lookups** compared to grep/glob for architectural queries.
+PRISM uses a **knowledge graph** stored in `.memory/memory.jsonl` to index components, modules, configs, and their relationships. This enables faster component lookups compared to grep/glob for architectural queries.
 
-**IMPORTANT**: When navigating the PRISM codebase, **always check the knowledge graph first** for architectural queries. This is your primary navigation tool for understanding component locations and relationships.
+### Files
 
-### Graph Location & Git Tracking
+- **Graph data**: `.memory/memory.jsonl` (local, gitignored)
+- **Update state**: `.memory/.last_update` (local, gitignored)
+- **Scripts/docs**: `.memory/*.py`, `.memory/README.md` (tracked in git)
 
-- **Memory file**: `.memory/memory.jsonl` (tracked in git)
-- **Update metadata**: `.memory/.last_update` (tracks last sync commit)
-- **Documentation**: `docs/knowledge-graph-schema.md`
+### When to Use Knowledge Graph
 
-### ALWAYS Use Knowledge Graph First For:
+Use MCP memory tools for **relationship and architectural queries**:
+- "What inherits from X?" → Graph has pre-computed inheritance relationships
+- "What uses/depends on X?" → Check entity observations for relationships
+- "List all configs/pipelines/protocols" → `mcp__memory__search_nodes("<type>")`
+- "What is the architecture of module Y?" → Graph provides structured overview with descriptions
 
-The knowledge graph provides instant answers to architectural queries that would otherwise require multiple grep/glob searches. Use it as your first resort for:
+### When to Use Grep/Glob
 
-**1. Component Location**: "Where is X defined?"
+Use grep/glob for **simple text searches** (often faster and more concise):
+- "Where is X defined?" → Grep returns targeted file paths directly
+- Searching for string patterns (TODO, deprecated, comments, etc.)
+- Finding implementation details not indexed in the graph
+- When you need always-current results (graph might be stale)
+- When MCP memory tools are unavailable
 
-```bash
-uv run python .memory/query_knowledge_graph.py "where is PRISMRunner"
-```
+### Choosing the Right Tool
 
-Returns file path and line number instantly.
+| Query Type | Best Tool | Why |
+|------------|-----------|-----|
+| "Where is AbstractRunner?" | **Grep** | Returns 6 files instantly, concise |
+| "What inherits from AbstractRunner?" | **Knowledge Graph** | Pre-computed relationships |
+| "List all Config classes" | **Knowledge Graph** | Can filter by entity type |
+| "Find all TODO comments" | **Grep** | String pattern search |
+| "What does MoPIERunner use?" | **Knowledge Graph** | Indexed relationships |
 
-**2. Dependency Analysis**: "What uses X?" or "What does X depend on?"
+### Hybrid Approach (Recommended)
 
-```bash
-uv run python .memory/query_knowledge_graph.py "what uses MeasurementSystem"
-```
-
-Shows all components that depend on or use the target component.
-
-**3. Type-based Discovery**: "List all configs/pipelines/propagators"
-
-```bash
-uv run python .memory/query_knowledge_graph.py "list all Pipeline"
-```
-
-Enumerates all components of a specific type.
-
-**4. Configuration Mapping**: "What configures X?"
-
-```bash
-uv run python .memory/query_knowledge_graph.py "what configures Telescope"
-```
-
-Shows configuration classes and their relationships.
-
-### Use Codebase-Retrieval For:
-
-Switch to grep/glob/read when you need:
-
-- **Implementation details** and code examples
-- **Free-text queries** about algorithms or methods
-- **Current code state** (if graph might be stale)
-- **Queries not covered** by graph relations (e.g., "find all instances of deprecated pattern")
-
-### Hybrid Approach (Recommended):
-
-Combine both tools for maximum efficiency:
-
-1. **Query knowledge graph** to identify relevant components
-2. **Use codebase-retrieval** for implementation details
-3. **Use Read tool** to examine specific files
-
-**Example Workflow:**
-
-```
-User: "How does the training loop work?"
-
-Step 1: Knowledge Graph Query
-  uv run python .memory/query_knowledge_graph.py "list all Pipeline"
-  → Result: PRISMRunner, PRISMTrainer
-
-Step 2: Knowledge Graph Query
-  uv run python .memory/query_knowledge_graph.py "what uses PRISMTrainer"
-  → Result: PRISMRunner (orchestrates training)
-
-Step 3: Codebase-Retrieval
-  Search for "PRISMTrainer training loop implementation"
-  → Identify key methods and logic
-
-Step 4: Read Specific File
-  Read prism/core/trainers.py
-  → Examine detailed implementation
-```
-
-This approach typically reduces discovery time from 2-3 minutes to under 30 seconds.
-
-### When to Use Knowledge Graph vs Grep/Glob
-
-**Use Knowledge Graph for:**
-- ✅ Component lookups: "Where is Telescope class?"
-- ✅ Dependency queries: "What uses MeasurementSystem?"
-- ✅ Architecture questions: "Show all propagators"
-- ✅ Relationship queries: "What configures Telescope?"
-- ✅ Type-based searches: "List all pipelines"
-
-**Use Grep for:**
-- ✅ String searches: "Find all TODO comments"
-- ✅ Code patterns: "Search for deprecated functions"
-- ✅ Usage examples: "Find examples of create_pattern"
-
-**Use Glob for:**
-- ✅ File discovery: "Find all test files"
-- ✅ File patterns: "List notebooks"
+1. **Simple location queries** → Use Grep for concise, current results
+2. **Relationship queries** → Use knowledge graph for pre-indexed relationships
+3. **Deep investigation** → Use Read tool to examine implementation details
+4. **Combine as needed** → Graph for architecture overview, then Grep for specifics
 
 ### MCP Memory Tools
 
 Query the knowledge graph using MCP memory tools:
 
 ```python
-# Search for components
-mcp__memory__search_nodes("Telescope")
-
-# Get detailed information on specific nodes
-mcp__memory__open_nodes(["Telescope", "TelescopeConfig", "MeasurementSystem"])
-
-# Read entire graph
-mcp__memory__read_graph()
-```
-
-### Query Examples (MCP Tools)
-
-Use MCP memory tools for quick lookups:
-
-```python
-# Find component by name
-mcp__memory__search_nodes("Telescope")
-# Returns: Telescope entity with type, location, observations
-
-# Get detailed info on multiple components
-mcp__memory__open_nodes(["Telescope", "TelescopeConfig"])
-# Returns: Full entity details including relationships
-
-# Find all entities of a type (search by type name)
-mcp__memory__search_nodes("Pipeline")
-# Returns: PRISMRunner, PRISMTrainer
+mcp__memory__search_nodes("<query>")      # Search for entities by name
+mcp__memory__open_nodes(["<name>", ...])  # Get details on specific entities
+mcp__memory__read_graph()                  # Read entire graph
 ```
 
 ### Graph Contents
 
-The knowledge graph includes:
+Entity types and contents are discovered automatically by the AST scanner. Run `/create-knowledge-graph` or `/update-knowledge-graph` to see current contents.
 
-**Core Components:**
-- Telescope, TelescopeConfig, MeasurementSystem, MeasurementSystemConfig
-- Grid, Instrument (protocol)
-
-**Propagators:**
-- FreeSpacePropagator (auto-selecting)
-- FresnelPropagator (near-field), FraunhoferPropagator (far-field)
-- AngularSpectrumPropagator (general)
-
-**Pipelines:**
-- PRISMRunner (experiment orchestrator)
-- PRISMTrainer (training loop)
-
-**Scenarios:**
-- MicroscopeScenarioConfig, DroneScenarioConfig
-- MicroscopeBuilder, DroneBuilder
-- get_scenario_preset (17 presets)
-
-**Models:**
-- ProgressiveDecoder (decoder architecture)
-- LossAggregator (progressive loss)
-
-**Visualization:**
-- ReconstructionComparisonPlotter, LearningCurvesPlotter
-- SyntheticAperturePlotter, VisualizationConfig
-
-**Full Documentation:**
-- Schema: [docs/knowledge-graph-schema.md](docs/knowledge-graph-schema.md)
-- Summary: [docs/knowledge-graph-summary.md](docs/knowledge-graph-summary.md)
+See `.memory/README.md` for setup and usage.
 
 ### Updating the Knowledge Graph
 
@@ -1867,6 +1744,7 @@ Skills provide detailed workflows, checklists, and code examples specific to PRI
 - **ALWAYS add tests** for new functionality
 - **ALWAYS check diffraction regime** (Fraunhofer vs Fresnel) for optical code
 - **ALWAYS format code BEFORE committing** (`ruff check --fix`, `ruff format`) - never bypass pre-commit hooks
+- **Use the right tool for the query**: Grep for simple "where is X?" searches (fast, concise, always current); Knowledge graph for relationship queries ("what inherits from X?", "what uses Y?", "list all configs"). See Knowledge Graph section for detailed guidance.
 
 ---
 

@@ -32,7 +32,7 @@ repos:
     hooks:
       - id: knowledge-graph-check
         name: Knowledge Graph Sync Check
-        entry: uv run python .memory/validate_graph.py
+        entry: uv run python .memory/update_knowledge_graph.py --status
         language: system
         files: ^prism/.*\.py$
         pass_filenames: false

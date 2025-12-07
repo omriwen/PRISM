@@ -75,18 +75,7 @@ pip-wheel-metadata/
 # Keep directory structure but ignore all experiment runs
 runs/*
 !runs/.gitkeep
-data/
 
-# PRISM-specific notebooks (contain large outputs and experimental data)
-# Ignore notebooks in root directory and legacy locations
-/*.ipynb
-fermat_spirals.ipynb
-visualizaing_lpf.ipynb
-huygens.ipynb
-noise_analysis.ipynb
-two_step_fresnel.ipynb
-param_calc.ipynb
-exploring_performance.ipynb
 
 # Generated figures (moved to legacy/paper_figures/)
 # Note: examples/notebooks/ contains tutorial templates and should be tracked
@@ -127,14 +116,6 @@ logs/
 # MCP server configurations (contain machine-specific absolute paths)
 .mcp.json
 
-# Project-specific files
-Ideas_and_ToDos.md
-PERSONAL_PATH_EXPOSURE.md
-
-# Temporary AI Assistant files
-CLAUDEEEE.md
-GEMINIIIIII.md
-
 # Archived files (deprecated AI assistant docs)
 .archive/
 
@@ -150,8 +131,10 @@ docs/api/_build/
 docs/plans/
 *_REPORT.md
 
-# Knowledge graph (local development tool)
-.memory/
+# Knowledge graph data (local state only)
+.memory/memory.jsonl
+.memory/.last_update
+.memory/scanned_entities.json
 
 # Tutorial generated reports
 examples/notebooks/tutorial_reports/
