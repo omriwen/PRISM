@@ -58,17 +58,17 @@ uv sync                         # Sync dependencies from lockfile
 ### Common Development Commands
 
 ```bash
-# Main algorithm with Europa test
+# PRISM algorithm (neural network-based, default)
 uv run python main.py --obj_name europa --n_samples 100 --fermat --name test_run
+
+# Mo-PIE algorithm (traditional phase retrieval)
+uv run python main.py --algorithm mopie --obj_name europa --n_epochs 100 --fermat --name mopie_run
 
 # Quick test (sparse sampling for fast iteration)
 uv run python main.py --obj_name europa --n_samples 64 --sample_length 64 --samples_per_line_meas 9 --max_epochs 1 --fermat --debug --name quick_test
 
 # Resume from checkpoint
 uv run python main.py --obj_name europa --checkpoint experiment_name --name resumed_run
-
-# Alternative PIE algorithm for comparison
-uv run python main_epie.py --obj_name europa --n_samples 100 --name epie_baseline
 
 # Natural language configuration
 uv run python main.py --instruction "train europa with lr 0.01 using fresnel"
@@ -157,8 +157,8 @@ PRISM/
 ├── tests/                      # Test suite
 │   ├── unit/                  # Unit tests
 │   └── integration/           # Integration tests
-├── main.py                     # Main PRISM entry point
-├── main_epie.py               # ePIE baseline implementation
+├── main.py                     # Unified entry point (--algorithm prism|mopie)
+├── main_mopie.py              # Deprecated: use main.py --algorithm mopie
 └── runs/                      # Experiment outputs
 ```
 

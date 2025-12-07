@@ -143,9 +143,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guidelines.
 
 ### Quick Start
 
-Run the main PRISM algorithm with Europa test:
+PRISM provides a unified entry point supporting multiple reconstruction algorithms via the `--algorithm` flag:
+
 ```bash
-uv run python main.py --obj_name europa --n_samples 100 --fermat --name test_run
+# PRISM algorithm (neural network-based, default)
+uv run python main.py --algorithm prism --obj_name europa --n_samples 100 --fermat --name test_run
+
+# Mo-PIE algorithm (traditional phase retrieval)
+uv run python main.py --algorithm mopie --obj_name europa --n_epochs 100 --fermat --name mopie_run
 ```
 
 For quick testing (sparse sampling for fast iteration):
@@ -153,12 +158,7 @@ For quick testing (sparse sampling for fast iteration):
 uv run python main.py --obj_name europa --n_samples 64 --sample_length 64 --samples_per_line_meas 9 --max_epochs 1 --fermat --debug --name quick_test
 ```
 
-### Alternative Mo-PIE Algorithm
-
-For comparison with traditional phase retrieval (Mo-PIE: Motion-aware Ptychographic Iterative Engine):
-```bash
-uv run python main_mopie.py --obj_name europa --n_samples 100 --fermat --name mopie_baseline
-```
+> **Note:** The separate `main_mopie.py` entry point is deprecated but still works for backward compatibility. Use `main.py --algorithm mopie` instead.
 
 ### Monitoring Training
 
