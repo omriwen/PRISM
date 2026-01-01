@@ -138,3 +138,6 @@ docs/plans/
 
 # Tutorial generated reports
 examples/notebooks/tutorial_reports/
+
+# Auto-claude
+.auto-claude/
